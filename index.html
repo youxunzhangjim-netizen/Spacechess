@@ -25,7 +25,7 @@
                     </span>
                     <span class="dimension-copy">
                         <strong id="dimension2dTitle">2D</strong>
-                        <small>Planar boundary boards</small>
+                        <small>Planar boundary boards and grid games</small>
                     </span>
                     <a class="game-option" href="./2D/2dchess/">
                         <span class="game-option-copy">
@@ -34,6 +34,13 @@
                         </span>
                         <span class="game-count-badge" data-popularity-key="game-2dchess">-- waiting</span>
                     </a>
+                    <a class="game-option" href="./2D/2dgo/">
+                        <span class="game-option-copy">
+                            <strong>2D Go</strong>
+                            <small>OBC and left-right PBC Go</small>
+                        </span>
+                        <span class="game-count-badge" data-popularity-key="game-2dgo">-- waiting</span>
+                    </a>
                 </section>
 
                 <section class="dimension-card dimension-3d" aria-labelledby="dimension3dTitle">
@@ -41,7 +48,7 @@
                     <span class="dimension-visual image-plane" aria-hidden="true"></span>
                     <span class="dimension-copy">
                         <strong id="dimension3dTitle">3D</strong>
-                        <small>R3, T2, RP2, Mobius</small>
+                        <small>R3, T2, RP2, Mobius, lattice Go</small>
                     </span>
                     <a class="game-option" href="./3D/3dchess/">
                         <span class="game-option-copy">
@@ -49,6 +56,13 @@
                             <small>R3 and embedded 2D spaces</small>
                         </span>
                         <span class="game-count-badge" data-popularity-key="game-3dchess">-- waiting</span>
+                    </a>
+                    <a class="game-option" href="./3D/3dgo/">
+                        <span class="game-option-copy">
+                            <strong>3D Go</strong>
+                            <small>R3 lattice and T2 torus Go</small>
+                        </span>
+                        <span class="game-count-badge" data-popularity-key="game-3dgo">-- waiting</span>
                     </a>
                 </section>
 
@@ -78,17 +92,22 @@
             const PEER_LIST_URL = 'https://0.peerjs.com/peerjs/peers';
             const PEER_VERSION = '1.5.5';
             const MATCHMAKING_BUCKET_MS = 60000;
-            const MATCH_ROOM_PATTERN = /^tc-([a-z0-9]+)-[a-z0-9]+-t\d+-m-(\d+)-\d+$/i;
+            const MATCH_ROOM_PATTERN = /^tc-([a-z0-9]+)-.*-m-(\d+)-\d+$/i;
             const GAME_BY_VARIANT = {
                 '2dchess': '2dchess',
+                '2dgo': '2dgo',
                 cube: '3dchess',
                 torus: '3dchess',
                 rp2: '3dchess',
-                mobius: '3dchess'
+                mobius: '3dchess',
+                r3go: '3dgo',
+                t2go: '3dgo'
             };
             const DIMENSION_BY_GAME = {
                 '2dchess': '2d',
+                '2dgo': '2d',
                 '3dchess': '3d',
+                '3dgo': '3d',
                 '4dchess': '4d'
             };
             const EMPTY_COUNTS = {
@@ -96,7 +115,9 @@
                 'dimension-3d': 0,
                 'dimension-4d': 0,
                 'game-2dchess': 0,
+                'game-2dgo': 0,
                 'game-3dchess': 0,
+                'game-3dgo': 0,
                 'game-4dchess': 0
             };
 

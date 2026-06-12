@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Go</title>
+    <link rel="stylesheet" href="./css/styles.css">
+    <script src="./vendor/peerjs.min.js"></script>
+</head>
+<body>
+    <main class="app-shell">
+        <section class="play-area">
+            <header class="top-bar">
+                <div>
+                    <h1>3D Go</h1>
+                    <p>R3 lattice Go and T2 torus Go with 9, 13, and 19 scale options.</p>
+                </div>
+            </header>
+
+            <div class="game-info-bar">
+                <div class="turn-pill" id="playerTurn">Black to play</div>
+                <div class="timer-section">
+                    <div class="player-timer active" id="blackTimerBox"><span>Black</span><strong id="blackTimer">10:00</strong></div>
+                    <div class="player-timer" id="whiteTimerBox"><span>White</span><strong id="whiteTimer">10:00</strong></div>
+                </div>
+                <div class="boundary-display" id="modeDisplay">R3 Go</div>
+            </div>
+
+            <div class="captured-pieces-container">
+                <div class="captured-side">
+                    <div class="captured-label">Captured by Black</div>
+                    <div class="capture-count" id="blackCaptured">0 stones</div>
+                </div>
+                <div class="captured-side">
+                    <div class="captured-label">Captured by White</div>
+                    <div class="capture-count" id="whiteCaptured">0 stones</div>
+                </div>
+            </div>
+
+            <div class="board-frame">
+                <canvas id="goCanvas" aria-label="3D Go board"></canvas>
+            </div>
+
+            <section class="panel score-panel" id="scorePanel" hidden>
+                <h3>Final Count</h3>
+                <div id="scoreResult"></div>
+            </section>
+        </section>
+
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Game Controls</h2>
+                <a class="space-home-link" href="../../" aria-label="Back to Topological Board Game picker">Home</a>
+            </div>
+
+            <div class="status-card">
+                <div class="status-line" id="gameStatus">Select a glowing node for Black.</div>
+                <div class="status-line muted" id="onlineColorStatus">Local pass and play</div>
+            </div>
+
+            <div class="control-group">
+                <label for="gameModeSelect">Game Mode</label>
+                <select id="gameModeSelect">
+                    <option value="local">Local Pass and Play</option>
+                    <option value="online">Online Multiplayer</option>
+                </select>
+            </div>
+
+            <div class="online-controls" id="onlineControls">
+                <button class="online-btn match" id="findMatchBtn" type="button">Find Match</button>
+                <div class="divider-text">PRIVATE ROOM</div>
+                <button class="online-btn create" id="createRoomBtn" type="button">Create Room</button>
+                <div class="divider-text">OR</div>
+                <input id="roomIdInput" type="text" autocomplete="off" placeholder="5-digit room code or shared link">
+                <button class="online-btn join" id="joinRoomBtn" type="button">Join Room</button>
+                <div class="room-info" id="roomInfo" hidden>
+                    <strong>Room Code</strong>
+                    <div class="room-id-display" id="roomIdDisplay"></div>
+                    <div class="share-link-box">
+                        <input class="share-link-input" id="shareLinkInput" type="text" readonly>
+                        <button class="copy-btn" id="copyLinkBtn" type="button">Copy</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="goModeSelect">Go Space</label>
+                <select id="goModeSelect">
+                    <option value="r3" selected>R3 Go</option>
+                    <option value="t2">T2 Torus Go</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="boardSizeSelect">Board Scale</label>
+                <select id="boardSizeSelect">
+                    <option value="9">9</option>
+                    <option value="13">13</option>
+                    <option value="19" selected>19</option>
+                </select>
+            </div>
+            <div class="boundary-info" id="modeInfo">R3 uses open boundaries in x, y, and z. T2 wraps both torus directions.</div>
+
+            <div class="control-group">
+                <label for="timerSelect">Timer per Player</label>
+                <select id="timerSelect">
+                    <option value="0">No Timer</option>
+                    <option value="300">5 Minutes</option>
+                    <option value="600" selected>10 Minutes</option>
+                    <option value="900">15 Minutes</option>
+                    <option value="1800">30 Minutes</option>
+                    <option value="3600">1 Hour</option>
+                </select>
+            </div>
+
+            <div class="control-grid">
+                <button id="cameraReset" type="button">Reset Camera</button>
+                <button id="passBtn" type="button">Pass</button>
+                <button id="countBtn" type="button">Agree Count</button>
+                <button id="newGameBtn" type="button">New Game</button>
+                <button id="surrenderBtn" class="danger" type="button">Surrender</button>
+            </div>
+
+            <section class="panel">
+                <h3>Move History</h3>
+                <div id="moveHistoryList" class="move-history"></div>
+            </section>
+
+            <section class="panel">
+                <h3>Rules</h3>
+                <div class="rules-text">Area scoring with 7.5 komi. R3 groups use six face-adjacent liberties. T2 groups use four torus-adjacent liberties with both directions periodic.</div>
+            </section>
+        </aside>
+    </main>
+
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>
