@@ -84,11 +84,8 @@ export class RP2ChessGame {
     }
 
     createEmptyBoard() {
-        return Array.from({ length: 2 }, () =>
-            Array.from({ length: this.boardHeight() }, () => Array(this.boardWidth()).fill(null))
-        );
+        return [Array.from({ length: this.boardHeight() }, () => Array(this.boardWidth()).fill(null))];
     }
-
     setupBoard3D() {
         this.board = this.createEmptyBoard();
         for (const { x, y, type } of this.createWhiteInitialPieces()) {
@@ -1157,7 +1154,7 @@ export class RP2ChessGame {
     resolveRP2(x, y, sheet = 0, dx = 0, dy = 0) {
         let nx = x;
         let ny = y;
-        let ns = Number(sheet) === 1 ? 1 : 0;
+        let ns = 0;
         let ndx = dx;
         let ndy = dy;
         const boundaryCrossings = [];
@@ -1170,28 +1167,28 @@ export class RP2ChessGame {
                 nx += this.boardWidth();
                 ny = this.boardHeight() - 1 - ny;
                 ndy = -ndy;
-                ns = 1 - ns;
+                ns = 0;
             } else if (nx >= this.boardWidth()) {
                 const fromSheet = ns;
                 boundaryCrossings.push(this.createBoundaryCrossing(fromSheet, 'right', this.wrapY(ny)));
                 nx -= this.boardWidth();
                 ny = this.boardHeight() - 1 - ny;
                 ndy = -ndy;
-                ns = 1 - ns;
+                ns = 0;
             } else if (ny < 0) {
                 const fromSheet = ns;
                 boundaryCrossings.push(this.createBoundaryCrossing(fromSheet, 'top', this.wrapX(nx)));
                 ny += this.boardHeight();
                 nx = this.boardWidth() - 1 - nx;
                 ndx = -ndx;
-                ns = 1 - ns;
+                ns = 0;
             } else if (ny >= this.boardHeight()) {
                 const fromSheet = ns;
                 boundaryCrossings.push(this.createBoundaryCrossing(fromSheet, 'bottom', this.wrapX(nx)));
                 ny -= this.boardHeight();
                 nx = this.boardWidth() - 1 - nx;
                 ndx = -ndx;
-                ns = 1 - ns;
+                ns = 0;
             }
             guard++;
         }
@@ -1213,42 +1210,26 @@ export class RP2ChessGame {
     }
 
     canonicalCoord(x, y, sheet = 0) {
-        const coord = {
+        return {
             x: this.wrapX(x),
             y: this.wrapY(y),
-            sheet: Number(sheet) === 1 ? 1 : 0
+            sheet: 0
         };
-
-        if (coord.sheet === 1 && !this.isBoundaryCell(coord.x, coord.y)) {
-            coord.sheet = 0;
-        }
-
-        return coord;
     }
-
     isBoundaryCell(x, y) {
         return x === 0 || x === this.boardWidth() - 1 || y === 0 || y === this.boardHeight() - 1;
     }
 
     isValidCell(x, y, sheet = 0) {
-        if (!this.inBounds(x, y)) return false;
-        return sheet === 0 || this.isBoundaryCell(x, y);
+        return sheet === 0 && this.inBounds(x, y);
     }
-
     *validCells() {
         for (let y = 0; y < this.boardHeight(); y++) {
             for (let x = 0; x < this.boardWidth(); x++) {
                 yield { x, y, sheet: 0 };
             }
         }
-
-        for (let y = 0; y < this.boardHeight(); y++) {
-            for (let x = 0; x < this.boardWidth(); x++) {
-                if (this.isBoundaryCell(x, y)) yield { x, y, sheet: 1 };
-            }
-        }
     }
-
     wrapX(value) {
         return ((value % this.boardWidth()) + this.boardWidth()) % this.boardWidth();
     }
@@ -1282,18 +1263,17 @@ export class RP2ChessGame {
             ? this.wrapY(index)
             : this.wrapX(index);
         return {
-            key: this.boundaryCrossingKey(fromSheet, side, normalized),
-            fromSheet,
-            toSheet: 1 - fromSheet,
+            key: this.boundaryCrossingKey(0, side, normalized),
+            fromSheet: 0,
+            toSheet: 0,
             side,
             index: normalized
         };
     }
 
     boundaryCrossingKey(sheet, side, index) {
-        return `${sheet}:${side}:${index}`;
+        return `0:${side}:${index}`;
     }
-
     isPromotionSquare(color, x, y, sheet = 0) {
         const coord = this.canonicalCoord(x, y, sheet);
         return coord.sheet === 0

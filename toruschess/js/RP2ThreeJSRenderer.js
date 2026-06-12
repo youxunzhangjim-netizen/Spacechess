@@ -15,8 +15,7 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         this.edgeGap = 0.58;
         this.boardLift = 0.03;
         this.pieceLift = 0.18;
-        this.sheetRise = 1.05;
-        this.sheetSpread = 3.25;
+        this.cageHeight = 2.2;
         this.boundaryLinks = new Map();
     }
 
@@ -30,7 +29,6 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         this.boundaryLinks.clear();
 
         this.addSheetBase(0);
-        this.addSheetBase(1);
 
         for (const { x, y, sheet } of this.game.validCells()) {
             const cell = new THREE.Mesh(
@@ -86,73 +84,73 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
             emissiveIntensity: 0.22,
             roughness: 0.36
         });
+        const sheet = 0;
 
-        for (const sheet of [0, 1]) {
-            for (let y = 0; y < this.boardHeight(); y++) {
-                for (const side of ['left', 'right']) {
-                    const rail = new THREE.Mesh(
-                        new THREE.BoxGeometry(0.12, 0.08, this.cellSize * 0.74),
-                        lrMaterial
-                    );
-                    rail.position.copy(this.edgePoint(side, y, sheet, 0.04));
-                    rail.castShadow = true;
-                    rail.userData = { type: 'edge-rail', sheet, side, index: y };
-                    this.boardGroup.add(rail);
-                }
+        for (let y = 0; y < this.boardHeight(); y++) {
+            for (const side of ['left', 'right']) {
+                const rail = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.12, 0.08, this.cellSize * 0.74),
+                    lrMaterial
+                );
+                rail.position.copy(this.edgePoint(side, y, sheet, 0.05));
+                rail.castShadow = true;
+                rail.userData = { type: 'edge-rail', sheet, side, index: y };
+                this.boardGroup.add(rail);
             }
+        }
 
-            for (let x = 0; x < this.boardWidth(); x++) {
-                for (const side of ['top', 'bottom']) {
-                    const rail = new THREE.Mesh(
-                        new THREE.BoxGeometry(this.cellSize * 0.74, 0.08, 0.12),
-                        tbMaterial
-                    );
-                    rail.position.copy(this.edgePoint(side, x, sheet, 0.04));
-                    rail.castShadow = true;
-                    rail.userData = { type: 'edge-rail', sheet, side, index: x };
-                    this.boardGroup.add(rail);
-                }
+        for (let x = 0; x < this.boardWidth(); x++) {
+            for (const side of ['top', 'bottom']) {
+                const rail = new THREE.Mesh(
+                    new THREE.BoxGeometry(this.cellSize * 0.74, 0.08, 0.12),
+                    tbMaterial
+                );
+                rail.position.copy(this.edgePoint(side, x, sheet, 0.05));
+                rail.castShadow = true;
+                rail.userData = { type: 'edge-rail', sheet, side, index: x };
+                this.boardGroup.add(rail);
             }
         }
     }
-
     addGlueLinks() {
-        for (const sheet of [0, 1]) {
-            for (let y = 0; y < this.boardHeight(); y++) {
-                this.addBoundaryLink(sheet, 'left', y);
-                this.addBoundaryLink(sheet, 'right', y);
-            }
+        const sheet = 0;
+        for (let y = 0; y < this.boardHeight(); y++) {
+            this.addBoundaryLink(sheet, 'left', y);
+            this.addBoundaryLink(sheet, 'right', y);
+        }
 
-            for (let x = 0; x < this.boardWidth(); x++) {
-                this.addBoundaryLink(sheet, 'top', x);
-                this.addBoundaryLink(sheet, 'bottom', x);
-            }
+        for (let x = 0; x < this.boardWidth(); x++) {
+            this.addBoundaryLink(sheet, 'top', x);
+            this.addBoundaryLink(sheet, 'bottom', x);
         }
     }
 
     addBoundaryLink(fromSheet, side, index) {
-        const toSheet = 1 - fromSheet;
+        const toSheet = 0;
         const toSide = this.oppositeSide(side);
         const horizontal = side === 'left' || side === 'right';
         const reversedIndex = horizontal
             ? this.boardHeight() - 1 - index
             : this.boardWidth() - 1 - index;
-        const start = this.edgePoint(side, index, fromSheet, 0.18);
-        const end = this.edgePoint(toSide, reversedIndex, toSheet, 0.2);
+        const start = this.edgePoint(side, index, 0, 0.34);
+        const end = this.edgePoint(toSide, reversedIndex, toSheet, 0.36);
         const midpoint = start.clone().add(end).multiplyScalar(0.5);
-        const control = midpoint.clone();
         const maxIndex = horizontal ? this.boardHeight() - 1 : this.boardWidth() - 1;
-        control.y += 1.2 + Math.abs(index - maxIndex / 2) * 0.04;
+        const edgeBalance = maxIndex === 0 ? 0 : Math.abs(index - maxIndex / 2) / (maxIndex / 2);
+        const control = midpoint.clone();
+        control.y += this.cageHeight + edgeBalance * 0.55;
+        control.z += horizontal ? 0 : (side === 'top' ? -0.35 : 0.35);
+        control.x += horizontal ? (side === 'left' ? -0.35 : 0.35) : 0;
         const lineMaterial = new THREE.LineBasicMaterial({
             color: horizontal ? 0x67e8f9 : 0xfbbf24,
             transparent: true,
-            opacity: 0.62,
+            opacity: 0.7,
             depthWrite: false
         });
         const arrowMaterial = new THREE.MeshStandardMaterial({
             color: horizontal ? 0x67e8f9 : 0xfbbf24,
             emissive: horizontal ? 0x0891b2 : 0xf59e0b,
-            emissiveIntensity: 0.26,
+            emissiveIntensity: 0.34,
             roughness: 0.32
         });
         const key = this.game.boundaryCrossingKey(fromSheet, side, index);
@@ -173,7 +171,6 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         this.boardGroup.add(line);
         this.boardGroup.add(arrow);
     }
-
     createLinkCurve(start, control, end, material, key = '') {
         const curve = new THREE.QuadraticBezierCurve3(start, control, end);
         const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(28));
@@ -225,32 +222,14 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
                 this.boardGroup.add(arrow);
             }
         }
-
-        const boundaryRows = { white: 0, black: this.boardHeight() - 1 };
-        const boundaryGuideFiles = this.sampleIndices(this.boardWidth(), 4);
-        for (const color of ['white', 'black']) {
-            const row = boundaryRows[color];
-            const direction = this.pawnDirection(color);
-            for (const x of boundaryGuideFiles) {
-                const pose = this.getCellPose(x, row, 0.24, 1);
-                const tangent = pose.tangentV.clone().multiplyScalar(direction).normalize();
-                const arrow = new THREE.Mesh(cone, guideMaterial[color]);
-                arrow.position.copy(pose.position).add(tangent.clone().multiplyScalar(0.16));
-                arrow.quaternion.setFromUnitVectors(yAxis, tangent);
-                arrow.castShadow = true;
-                arrow.userData = { type: 'guide', sheet: 1 };
-                this.boardGroup.add(arrow);
-            }
-        }
     }
-
     addBoardLabels() {
         this.labelGroup.clear();
 
         const centerX = Math.floor(this.boardWidth() / 2);
         const centerY = Math.floor(this.boardHeight() / 2);
         const boundary = this.createTextSprite('RP2', 0x86efac, 54);
-        boundary.position.copy(this.getCellPose(centerX, centerY, 0.42, 1).position);
+        boundary.position.copy(this.getCellPose(centerX, centerY, 0.54, 0).position);
         boundary.scale.set(0.34, 0.34, 0.34);
         this.labelGroup.add(boundary);
 
@@ -348,10 +327,8 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
     }
 
     createCellGeometry(sheet = 0) {
-        if (sheet === 1) return new THREE.BoxGeometry(this.cellSize * 0.86, 0.06, this.cellSize * 0.86);
         return new THREE.BoxGeometry(this.cellSize, 0.06, this.cellSize);
     }
-
     getCellPose(x, y, lift = 0, sheet = 0) {
         const offset = this.sheetOffset(sheet);
         return {
@@ -363,12 +340,8 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
     }
 
     sheetOffset(sheet = 0) {
-        const spread = this.sheetSeparation();
-        return Number(sheet) === 1
-            ? new THREE.Vector3(0, this.sheetRise, -spread * 0.5)
-            : new THREE.Vector3(0, 0, spread * 0.5);
+        return new THREE.Vector3(0, 0, 0);
     }
-
     boardWidth() {
         return this.game?.boardWidth?.() ?? RP2_BOARD_WIDTH;
     }
@@ -401,10 +374,6 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
             sampled.add(values[index]);
         }
         return [...sampled];
-    }
-
-    sheetSeparation() {
-        return Math.max(this.sheetSpread, this.boardSpanZ() * 0.54);
     }
 
     boardStep() {
@@ -499,9 +468,9 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
 
     homeCameraPosition() {
         const base = this.game.currentPlayer === 'black'
-            ? new THREE.Vector3(-5.8, 7.3, -7.4)
-            : new THREE.Vector3(5.8, 7.3, 7.4);
-        if (this.camera?.aspect < 0.72) base.setLength(14.2);
+            ? new THREE.Vector3(-6.8, 8.4, -8.8)
+            : new THREE.Vector3(6.8, 8.4, 8.8);
+        base.setLength(this.camera?.aspect < 0.72 ? 17.2 : 14.8);
         return base;
     }
 }

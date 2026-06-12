@@ -133,7 +133,7 @@ const DICTIONARY = {
             },
             info: {
                 periodic: 'T2 uses 112 playable blocks shown as an 8-cell short winding and a 14-row long direction. The six extra blank rows sit between the initial armies, and both directions wrap periodically.',
-                rp2: 'RP2 uses 92 playable blocks: one full 8x8 sheet plus 28 perimeter cells on a second side. Boundary crossings toggle sides and reverse the matched coordinate.',
+                rp2: 'RP2 uses one 12x14 fundamental board. Crossing a boundary lands on the opposite edge with the matched coordinate reversed, and the raised cage arrows show the antipodal gluing.',
                 mobius: 'Mobius uses two full 8x8 surface sides. The lateral x edges are open; crossing the winding y edge reverses x and lands on the opposite side. The armies start on matching coordinates on opposite normals.'
             }
         },

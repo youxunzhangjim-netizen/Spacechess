@@ -27,10 +27,10 @@ const VARIANTS = {
     rp2: {
         label: 'RP2',
         title: 'RP2 Chess',
-        tagline: '2D chess on a two-side RP2 board: one full 8x8 sheet plus 28 boundary cells on the second side.',
+        tagline: '2D chess on one 12x14 RP2 fundamental board with antipodal edge gluing.',
         canvasLabel: '3D RP2 chess board',
         rulesTitle: 'RP2 Rules',
-        rulesText: 'Pieces use 2D chess movement on 92 RP2 blocks: one full 8x8 sheet plus the 28 perimeter cells of a second side. Crossing left or right toggles sides and reverses y; crossing top or bottom toggles sides and reverses x. Move hints that cross a boundary light the matching glue arrow green.',
+        rulesText: 'Pieces use 2D chess movement on one 12x14 RP2 board. Crossing left or right lands on the opposite edge with y reversed; crossing top or bottom lands on the opposite edge with x reversed. Move hints that cross a boundary light the raised cage arrow green.',
         boundaryValue: 'rp2',
         controller: RP2ChessGame
     },
