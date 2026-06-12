@@ -24,6 +24,11 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         this.resetCamera();
     }
 
+    addLighting() {
+        super.addLighting();
+        this.decorGroup.clear();
+    }
+
     createBoard3D() {
         this.boardGroup.clear();
         this.boundaryLinks.clear();
