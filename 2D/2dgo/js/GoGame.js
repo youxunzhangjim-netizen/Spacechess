@@ -18,6 +18,12 @@ export function valueToColor(value) {
     return '';
 }
 
+export function normalizeTopology(topology) {
+    const value = String(topology || '').toLowerCase();
+    if (['pbc', 'pbcx', 'pbc-x', 't2'].includes(value)) return 'pbc';
+    return 'open2d';
+}
+
 export class GoGameLogic {
     constructor(options = {}) {
         this.reset(options);
@@ -26,7 +32,7 @@ export class GoGameLogic {
     reset({ size = 9, dimension = 2, topology = 'open2d', komi = 7.5 } = {}) {
         this.size = Number(size) || 9;
         this.dimension = Number(dimension) || 2;
-        this.topology = topology || 'open2d';
+        this.topology = normalizeTopology(topology);
         this.komi = Number.isFinite(Number(komi)) ? Number(komi) : 7.5;
         this.total = this.size ** this.dimension;
         this.board = new Uint8Array(this.total);
@@ -77,9 +83,7 @@ export class GoGameLogic {
     }
 
     isWrapAxis(axis) {
-        if (this.topology === 't2') return axis === 0 || axis === 1;
-        if (this.topology === 'pbc-x') return axis === 0;
-        return false;
+        return this.topology === 'pbc' && (axis === 0 || axis === 1);
     }
 
     stepCoord(coord, axis, delta) {
@@ -293,7 +297,7 @@ export class GoGameLogic {
         if (!state || typeof state !== 'object') return;
         this.size = Number(state.size) || 9;
         this.dimension = Number(state.dimension) || 2;
-        this.topology = state.topology || 'open2d';
+        this.topology = normalizeTopology(state.topology);
         this.komi = Number.isFinite(Number(state.komi)) ? Number(state.komi) : 7.5;
         this.total = this.size ** this.dimension;
         this.board = new Uint8Array(this.total);

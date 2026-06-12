@@ -8,18 +8,7 @@
 </head>
 <body>
     <div class="launcher-background-torus" aria-hidden="true">
-        <div class="torus-stage">
-            <span class="torus-piece white tp1"></span>
-            <span class="torus-piece white tp2"></span>
-            <span class="torus-piece white tp3"></span>
-            <span class="torus-piece white tp4"></span>
-            <span class="torus-piece black tp5"></span>
-            <span class="torus-piece black tp6"></span>
-            <span class="torus-piece black tp7"></span>
-            <span class="torus-piece black tp8"></span>
-            <span class="torus-piece gold tp9"></span>
-            <span class="torus-piece gold tp10"></span>
-        </div>
+        <canvas id="launcherTorusCanvas"></canvas>
     </div>
 
     <main class="launcher-shell">
@@ -52,7 +41,7 @@
                     <a class="game-option" href="./2D/2dgo/">
                         <span class="game-option-copy">
                             <strong>2D Go</strong>
-                            <small>OBC and left-right PBC Go</small>
+                            <small>OBC and full x/y PBC Go</small>
                         </span>
                         <span class="game-count-badge" data-popularity-key="game-2dgo">-- waiting</span>
                     </a>
@@ -218,5 +207,6 @@
             window.setInterval(refreshPopularity, 60000);
         })();
     </script>
+    <script type="module" src="./js/launcher-torus.js"></script>
 </body>
 </html>

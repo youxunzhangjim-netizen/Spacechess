@@ -58,7 +58,14 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2 data-i18n="controls.title">Game Controls</h2>
-                <a class="space-home-link" href="../../" aria-label="Back to Topological Board Game picker">Home</a>
+                <div class="sidebar-actions">
+                    <a class="space-home-link" href="../../" aria-label="Back to Topological Board Game picker" data-i18n="navigation.home">Home</a>
+                    <div class="language-switch" aria-label="Language" data-i18n-aria-label="language.label">
+                        <button type="button" class="lang-option active" data-lang-option="en" aria-pressed="true" title="English" data-i18n-title="language.english">En</button>
+                        <span class="lang-divider" aria-hidden="true">|</span>
+                        <button type="button" class="lang-option" data-lang-option="zh" aria-pressed="false" title="Chinese" data-i18n-title="language.chinese">&#20013;</button>
+                    </div>
+                </div>
             </div>
 
             <div class="status-card">
@@ -140,12 +147,6 @@
             </section>
         </aside>
     </main>
-
-    <div class="language-switch" aria-label="Language" data-i18n-aria-label="language.label">
-        <button type="button" class="lang-option active" data-lang-option="en" aria-pressed="true" title="English" data-i18n-title="language.english">En</button>
-        <span class="lang-divider" aria-hidden="true">|</span>
-        <button type="button" class="lang-option" data-lang-option="zh" aria-pressed="false" title="Chinese" data-i18n-title="language.chinese">&#20013;</button>
-    </div>
 
     <script type="module" src="./js/main.js"></script>
 </body>

@@ -13,7 +13,7 @@
             <header class="top-bar">
                 <div>
                     <h1>2D Go</h1>
-                    <p>Open-boundary and left-right periodic Go on 9x9, 13x13, and 19x19 boards.</p>
+                    <p>Open-boundary and fully periodic Go on 9x9, 13x13, and 19x19 boards.</p>
                 </div>
             </header>
 
@@ -96,10 +96,10 @@
                 <label for="boundarySelect">Boundary Condition</label>
                 <select id="boundarySelect">
                     <option value="open2d" selected>OBC Open</option>
-                    <option value="pbc-x">PBC Left-Right</option>
+                    <option value="pbc">PBC All Sides</option>
                 </select>
             </div>
-            <div class="boundary-info" id="boundaryInfo">OBC uses ordinary board edges. PBC connects only the left and right sides.</div>
+            <div class="boundary-info" id="boundaryInfo">OBC uses ordinary board edges. PBC connects both left-right and top-bottom sides.</div>
 
             <div class="control-group">
                 <label for="timerSelect">Timer per Player</label>

@@ -92,7 +92,14 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2 data-i18n="controls.title">Game Controls</h2>
-                <a class="space-home-link" href="../../" aria-label="Back to Topological Board Game picker">Home</a>
+                <div class="sidebar-actions">
+                    <a class="space-home-link" href="../../" aria-label="Back to Topological Board Game picker" data-i18n="navigation.home">Home</a>
+                    <div class="language-switch" aria-label="Language" data-i18n-aria-label="language.label">
+                        <button type="button" class="lang-option active" data-lang-option="en" aria-pressed="true" title="English" data-i18n-title="language.english">En</button>
+                        <span class="lang-divider" aria-hidden="true">|</span>
+                        <button type="button" class="lang-option" data-lang-option="zh" aria-pressed="false" title="Chinese" data-i18n-title="language.chinese">&#20013;</button>
+                    </div>
+                </div>
             </div>
 
             <div class="status-card">
@@ -134,6 +141,7 @@
                     <option value="cube">R3 3D Chess</option>
                     <option value="rp2">RP2 Chess</option>
                     <option value="mobius">Mobius Chess</option>
+                    <option value="sphere">S2 Sphere Chess</option>
                 </select>
                 <select id="boundarySelect" hidden aria-hidden="true" tabindex="-1">
                     <option value="forbidden" data-i18n="boundary.names.forbidden">Forbidden</option>
@@ -141,6 +149,7 @@
                     <option value="periodic" selected data-i18n="boundary.names.periodic">Periodic</option>
                     <option value="rp2" data-i18n="boundary.names.rp2">RP2 antipodal</option>
                     <option value="mobius" data-i18n="boundary.names.mobius">Mobius twist</option>
+                    <option value="sphere" data-i18n="boundary.names.sphere">S1 sphere</option>
                 </select>
             </div>
             <div class="boundary-info" id="boundaryInfo">
@@ -190,12 +199,6 @@
         <button type="button" class="toggle-switch active" id="hintsToggleSwitch" aria-pressed="true">
             <span class="toggle-slider"></span>
         </button>
-    </div>
-
-    <div class="language-switch" aria-label="Language" data-i18n-aria-label="language.label">
-        <button type="button" class="lang-option active" data-lang-option="en" aria-pressed="true" title="English" data-i18n-title="language.english">En</button>
-        <span class="lang-divider" aria-hidden="true">|</span>
-        <button type="button" class="lang-option" data-lang-option="zh" aria-pressed="false" title="Chinese" data-i18n-title="language.chinese">&#20013;</button>
     </div>
 
     <div id="promotionModal" class="promotion-modal" aria-hidden="true">

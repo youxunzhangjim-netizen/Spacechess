@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { COLORS, GoGameLogic, otherColor, valueToColor } from './GoGame.js';
 import { GoNetworkManager } from './NetworkManager.js';
+import {
+    createTorusSurfaceData,
+    TORUS_MAJOR_RADIUS,
+    TORUS_MINOR_RADIUS,
+    torusFrame
+} from './TorusBoardGeometry.js';
 
 const PUBLIC_GAME_URL = 'https://youxunzhangjim-netizen.github.io/Spacechess/3D/3dgo/';
 const STORAGE_PREFIX = '3dgo:room:';
@@ -11,6 +17,7 @@ const LANGUAGE_STORAGE_KEY = '3dgo:language';
 const I18N = {
     en: {
         language: { label: 'Language', english: 'English', chinese: 'Chinese' },
+        navigation: { home: 'Home' },
         app: { title: '3D Go', tagline: 'R3 lattice Go and T2 torus Go with 9, 13, and 19 scale options.' },
         colors: { black: 'Black', white: 'White' },
         captured: { byBlack: 'Captured by Black', byWhite: 'Captured by White', stones: ({ count }) => count + ' ' + (count === 1 ? 'stone' : 'stones') },
@@ -24,18 +31,19 @@ const I18N = {
         score: { draw: 'Draw', wins: ({ color }) => color + ' wins', winsBy: ({ color, margin }) => color + ' wins by ' + margin, summary: ({ black, white, komi, result }) => 'Black ' + black + ', White ' + white + ' including ' + komi + ' komi. ' + result }
     },
     zh: {
-        language: { label: '语言', english: 'English', chinese: '中文' },
-        app: { title: '3D 围棋', tagline: 'R3 格点围棋与 T2 环面围棋，支持 9、13、19 尺寸。' },
+        language: { label: '語言', english: 'English', chinese: '繁體中文' },
+        navigation: { home: '首頁' },
+        app: { title: '3D 圍棋', tagline: 'R3 格點圍棋與 T2 環面圍棋，支援 9、13、19 尺寸。' },
         colors: { black: '黑方', white: '白方' },
         captured: { byBlack: '黑方提子', byWhite: '白方提子', stones: ({ count }) => count + ' 子' },
-        controls: { title: '游戏控制', gameMode: '游戏模式', local: '本地轮流', online: '在线多人', goSpace: '围棋空间', boardScale: '棋盘尺度', timer: '每方时间', resetCamera: '重置视角', pass: '停一手', agreeCount: '同意数目', newGame: '新游戏', surrender: '认输' },
-        online: { localStatus: '本地轮流', findMatch: '寻找匹配', privateRoom: '私人房间', createRoom: '创建房间', or: '或', roomInput: '5 位房间码或分享链接', joinRoom: '加入房间', roomCode: '房间码', copy: '复制', copied: '已复制', onlineAs: ({ color }) => '在线身份：' + color },
-        mode: { r3Option: 'R3 围棋', t2Option: 'T2 环面围棋', r3Display: ({ size }) => size + '^3 R3 围棋', t2Display: ({ size }) => size + ' x ' + size + ' T2 围棋', r3Info: 'R3 在 x、y、z 三个方向使用开放边界。', t2Info: 'T2 在环面棋盘的两个方向都周期连接。' },
-        timer: { none: '无计时', five: '5 分钟', ten: '10 分钟', fifteen: '15 分钟', thirty: '30 分钟', hour: '1 小时' },
-        history: { title: '走法记录', started: '游戏开始。' },
-        rules: { title: '规则', text: '面积计分，贴目 7.5。R3 棋串使用六个面相邻气；T2 棋串使用环面上四个周期相邻气。' },
-        status: { start: '请选择一个发光节点让黑方落子。', waitingForColor: ({ color }) => '等待' + color + '。', toPlay: ({ color }) => color + '落子', countingPending: '等待数目确认', twoPasses: '双方连续停一手。两位玩家都需要同意数目。', agreed: ({ color, other }) => color + '已同意，等待' + other + '。', surrendered: ({ color, winner }) => color + '认输，' + winner + '获胜。', timedOut: ({ color, winner }) => color + '超时，' + winner + '获胜。', synced: '已同步在线棋局。', finalCount: '终局数目：' },
-        score: { draw: '平局', wins: ({ color }) => color + '获胜', winsBy: ({ color, margin }) => color + '胜 ' + margin, summary: ({ black, white, komi, result }) => '黑方 ' + black + '，白方 ' + white + '，含贴目 ' + komi + '。' + result }
+        controls: { title: '遊戲控制', gameMode: '遊戲模式', local: '本地輪流', online: '線上多人', goSpace: '圍棋空間', boardScale: '棋盤尺度', timer: '每方時間', resetCamera: '重設視角', pass: '停一手', agreeCount: '同意計分', newGame: '新遊戲', surrender: '認輸' },
+        online: { localStatus: '本地輪流', findMatch: '尋找配對', privateRoom: '私人房間', createRoom: '建立房間', or: '或', roomInput: '5 位房間碼或分享連結', joinRoom: '加入房間', roomCode: '房間碼', copy: '複製', copied: '已複製', onlineAs: ({ color }) => '線上身分：' + color },
+        mode: { r3Option: 'R3 圍棋', t2Option: 'T2 環面圍棋', r3Display: ({ size }) => size + '^3 R3 圍棋', t2Display: ({ size }) => size + ' x ' + size + ' T2 圍棋', r3Info: 'R3 在 x、y、z 三個方向使用開放邊界。', t2Info: 'T2 在環面棋盤的兩個方向皆為週期連接。' },
+        timer: { none: '無計時', five: '5 分鐘', ten: '10 分鐘', fifteen: '15 分鐘', thirty: '30 分鐘', hour: '1 小時' },
+        history: { title: '走法記錄', started: '遊戲開始。' },
+        rules: { title: '規則', text: '面積計分，貼目 7.5。R3 棋串使用六個面相鄰氣；T2 棋串使用環面上四個週期相鄰氣。' },
+        status: { start: '請選擇一個發光節點讓黑方落子。', waitingForColor: ({ color }) => '等待' + color + '。', toPlay: ({ color }) => color + '落子', countingPending: '等待計分確認', twoPasses: '雙方連續停一手。兩位玩家都需要同意計分。', agreed: ({ color, other }) => color + '已同意，等待' + other + '。', surrendered: ({ color, winner }) => color + '認輸，' + winner + '獲勝。', timedOut: ({ color, winner }) => color + '逾時，' + winner + '獲勝。', synced: '已同步線上棋局。', finalCount: '終局計分：' },
+        score: { draw: '和局', wins: ({ color }) => color + '獲勝', winsBy: ({ color, margin }) => color + '勝 ' + margin, summary: ({ black, white, komi, result }) => '黑方 ' + black + '，白方 ' + white + '，含貼目 ' + komi + '。' + result }
     }
 };
 
@@ -58,7 +66,7 @@ function tr(key, params = {}) {
 }
 
 function applyLanguage(root = document) {
-    document.documentElement.lang = currentLanguage;
+    document.documentElement.lang = currentLanguage === 'zh' ? 'zh-Hant' : 'en';
     document.title = tr('app.title');
     root.querySelectorAll('[data-i18n]').forEach((element) => { element.textContent = tr(element.dataset.i18n); });
     root.querySelectorAll('[data-i18n-placeholder]').forEach((element) => { element.setAttribute('placeholder', tr(element.dataset.i18nPlaceholder)); });
@@ -204,46 +212,102 @@ class Go3DRenderer {
     }
 
     buildTorus(size) {
+        const surfaceData = createTorusSurfaceData();
+        const surfaceGeometry = new THREE.BufferGeometry();
+        surfaceGeometry.setAttribute('position', new THREE.Float32BufferAttribute(surfaceData.positions, 3));
+        surfaceGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(surfaceData.normals, 3));
+        surfaceGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(surfaceData.uvs, 2));
+        surfaceGeometry.setIndex(surfaceData.indices);
         const torus = new THREE.Mesh(
-            new THREE.TorusGeometry(3.35, 1.22, 44, 144),
-            new THREE.MeshPhysicalMaterial({ color: 0x4f3826, roughness: 0.64, metalness: 0.08, transparent: true, opacity: 0.28 })
+            surfaceGeometry,
+            new THREE.MeshPhysicalMaterial({
+                color: 0xb5793f,
+                roughness: 0.5,
+                metalness: 0.03,
+                clearcoat: 0.34,
+                clearcoatRoughness: 0.44
+            })
         );
+        torus.castShadow = true;
         torus.receiveShadow = true;
         this.boardGroup.add(torus);
 
-        const lineMaterialA = new THREE.LineBasicMaterial({ color: 0xf6d58b, transparent: true, opacity: 0.42 });
-        const lineMaterialB = new THREE.LineBasicMaterial({ color: 0x67e8f9, transparent: true, opacity: 0.42 });
-        for (let y = 0; y < size; y++) this.boardGroup.add(this.torusLine(size, (i) => [i % size, y], lineMaterialA));
-        for (let x = 0; x < size; x++) this.boardGroup.add(this.torusLine(size, (i) => [x, i % size], lineMaterialB));
+        const gridMaterial = new THREE.LineBasicMaterial({
+            color: 0x2b180e,
+            transparent: true,
+            opacity: 0.82,
+            depthWrite: false
+        });
+        for (let y = 0; y < size; y++) this.boardGroup.add(this.torusLine(size, 'x', y, gridMaterial));
+        for (let x = 0; x < size; x++) this.boardGroup.add(this.torusLine(size, 'y', x, gridMaterial));
 
         const pointPositions = [];
         for (let y = 0; y < size; y++) {
             for (let x = 0; x < size; x++) {
                 const coord = [x, y];
-                const p = this.torusPosition(coord, size, 0.045).position;
+                const p = this.torusPosition(coord, size, 0.055).position;
                 this.pointCoords.push(coord);
                 this.pointPositions.push(p);
                 pointPositions.push(p.x, p.y, p.z);
             }
         }
-        this.addNodePoints(pointPositions, size <= 9 ? 0.075 : size <= 13 ? 0.06 : 0.048);
+        this.addNodePoints(
+            pointPositions,
+            size <= 9 ? 0.055 : size <= 13 ? 0.044 : 0.034,
+            { color: 0x24130b, opacity: 0.96 }
+        );
+        this.addTorusStarPoints(size);
     }
 
-    torusLine(size, coordFor, material) {
+    torusLine(size, varyingAxis, fixedValue, material) {
         const points = [];
-        for (let i = 0; i <= size; i++) points.push(this.torusPosition(coordFor(i), size, 0.02).position);
+        const segments = Math.max(96, size * 8);
+        for (let i = 0; i <= segments; i++) {
+            const value = (i / segments) * size;
+            const coord = varyingAxis === 'x' ? [value, fixedValue] : [fixedValue, value];
+            points.push(this.torusPosition(coord, size, 0.035).position);
+        }
         return new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material);
     }
 
-    addNodePoints(positions, pointSize) {
+    addTorusStarPoints(size) {
+        const starCoords = this.starPoints(size);
+        const radius = size <= 9 ? 0.075 : size <= 13 ? 0.06 : 0.045;
+        const mesh = new THREE.InstancedMesh(
+            new THREE.SphereGeometry(radius, 16, 10),
+            new THREE.MeshStandardMaterial({
+                color: 0x190d08,
+                roughness: 0.7,
+                metalness: 0.02
+            }),
+            starCoords.length
+        );
+        const matrix = new THREE.Matrix4();
+        starCoords.forEach((coord, index) => {
+            const position = this.torusPosition(coord, size, 0.075).position;
+            matrix.makeTranslation(position.x, position.y, position.z);
+            mesh.setMatrixAt(index, matrix);
+        });
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        this.boardGroup.add(mesh);
+    }
+
+    starPoints(size) {
+        if (size === 9) return [2, 4, 6].flatMap((x) => [2, 4, 6].map((y) => [x, y]));
+        if (size === 13) return [3, 6, 9].flatMap((x) => [3, 6, 9].map((y) => [x, y]));
+        return [3, 9, 15].flatMap((x) => [3, 9, 15].map((y) => [x, y]));
+    }
+
+    addNodePoints(positions, pointSize, options = {}) {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         const material = new THREE.PointsMaterial({
-            color: 0xdff8ff,
+            color: options.color ?? 0xdff8ff,
             size: pointSize,
             sizeAttenuation: true,
             transparent: true,
-            opacity: 0.86,
+            opacity: options.opacity ?? 0.86,
             depthWrite: false
         });
         this.nodePoints = new THREE.Points(geometry, material);
@@ -354,22 +418,15 @@ class Go3DRenderer {
     }
 
     torusPosition(coord, size, lift = 0) {
-        const u = (coord[0] / size) * Math.PI * 2;
-        const v = (coord[1] / size) * Math.PI * 2;
-        const R = 3.35;
-        const r = 1.22;
-        const normal = new THREE.Vector3(Math.cos(u) * Math.cos(v), Math.sin(v), Math.sin(u) * Math.cos(v)).normalize();
-        const position = new THREE.Vector3(
-            (R + (r + lift) * Math.cos(v)) * Math.cos(u),
-            (r + lift) * Math.sin(v),
-            (R + (r + lift) * Math.cos(v)) * Math.sin(u)
-        );
+        const frame = torusFrame(coord, size, lift);
+        const position = new THREE.Vector3(frame.position.x, frame.position.y, frame.position.z);
+        const normal = new THREE.Vector3(frame.normal.x, frame.normal.y, frame.normal.z).normalize();
         return { position, normal };
     }
 
     resetCamera() {
         if (this.app?.logic?.topology === 't2') {
-            this.camera.position.set(0, 5.6, 8.2);
+            this.camera.position.set(0, 5.6, 9.8);
             this.controls.target.set(0, 0, 0);
         } else {
             this.camera.position.set(7.8, 7.4, 8.2);
@@ -489,7 +546,16 @@ class Go3DApp {
         });
         window.addEventListener('languagechange', () => {
             this.updateUI();
-            if (!this.network?.isConnected && this.gameModeSelect.value !== 'online') this.setOnlineColor(null);
+            if (!this.gameStarted && !this.network?.isConnected) {
+                this.setStatus(tr('status.start'));
+            } else if (this.logic.gameOver) {
+                this.setStatus(this.resultText());
+            } else if (this.logic.scoringPending) {
+                this.setStatus(tr('status.countingPending'));
+            } else {
+                this.setStatus(tr('status.toPlay', { color: this.colorName(this.logic.currentPlayer) }));
+            }
+            if (!this.network?.isConnected) this.setOnlineColor(null);
         });
     }
 
@@ -645,6 +711,9 @@ class Go3DApp {
         this.renderHistory();
         this.renderScore();
         this.renderer.renderStones(this.logic);
+        if (!this.network?.isConnected && this.gameModeSelect.value !== 'online') {
+            this.onlineColorEl.textContent = tr('online.localStatus');
+        }
     }
 
     updateTimerDisplay() {

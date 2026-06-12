@@ -1,4 +1,4 @@
-import { COLORS, GoGameLogic, otherColor, valueToColor } from './GoGame.js';
+import { COLORS, GoGameLogic, normalizeTopology, otherColor, valueToColor } from './GoGame.js';
 import { GoNetworkManager } from './NetworkManager.js';
 
 const PUBLIC_GAME_URL = 'https://youxunzhangjim-netizen.github.io/Spacechess/2D/2dgo/';
@@ -65,7 +65,7 @@ class Go2DApp {
         }
 
         const mode = String(params.get('mode') || params.get('boundary') || '').toLowerCase();
-        if (mode === 'pbcx' || mode === 'pbc-x') this.boundarySelect.value = 'pbc-x';
+        if (['pbc', 'pbcx', 'pbc-x', 't2'].includes(mode)) this.boundarySelect.value = 'pbc';
         if (mode === 'obc' || mode === 'open2d') this.boundarySelect.value = 'open2d';
     }
 
@@ -294,13 +294,7 @@ class Go2DApp {
         }
         ctx.stroke();
 
-        if (this.logic.topology === 'pbc-x') {
-            ctx.strokeStyle = 'rgba(7, 89, 133, 0.82)';
-            ctx.lineWidth = 3;
-            ctx.setLineDash([10, 8]);
-            ctx.strokeRect(rect.x - rect.step * 0.34, rect.y, rect.span + rect.step * 0.68, rect.span);
-            ctx.setLineDash([]);
-        }
+        if (this.logic.topology === 'pbc') this.drawPeriodicBoundary(rect);
 
         for (const [x, y] of this.starPoints(n)) {
             const p = this.coordToPixel([x, y]);
@@ -325,6 +319,43 @@ class Go2DApp {
             const p = this.coordToPixel(this.logic.coordFromIndex(index));
             this.drawStone(p.x, p.y, rect.step * 0.42, color);
         }
+    }
+
+    drawPeriodicBoundary(rect) {
+        const ctx = this.ctx;
+        const offset = rect.step * 0.34;
+        const left = rect.x - offset;
+        const top = rect.y - offset;
+        const right = rect.x + rect.span + offset;
+        const bottom = rect.y + rect.span + offset;
+        const marker = Math.max(6, rect.step * 0.18);
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(7, 89, 133, 0.9)';
+        ctx.lineWidth = Math.max(2, rect.step * 0.07);
+        ctx.setLineDash([10, 8]);
+        ctx.strokeRect(left, top, right - left, bottom - top);
+        ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.moveTo(left - marker, (top + bottom) / 2);
+        ctx.lineTo(left, (top + bottom) / 2 - marker * 0.6);
+        ctx.moveTo(left - marker, (top + bottom) / 2);
+        ctx.lineTo(left, (top + bottom) / 2 + marker * 0.6);
+        ctx.moveTo(right + marker, (top + bottom) / 2);
+        ctx.lineTo(right, (top + bottom) / 2 - marker * 0.6);
+        ctx.moveTo(right + marker, (top + bottom) / 2);
+        ctx.lineTo(right, (top + bottom) / 2 + marker * 0.6);
+        ctx.moveTo((left + right) / 2, top - marker);
+        ctx.lineTo((left + right) / 2 - marker * 0.6, top);
+        ctx.moveTo((left + right) / 2, top - marker);
+        ctx.lineTo((left + right) / 2 + marker * 0.6, top);
+        ctx.moveTo((left + right) / 2, bottom + marker);
+        ctx.lineTo((left + right) / 2 - marker * 0.6, bottom);
+        ctx.moveTo((left + right) / 2, bottom + marker);
+        ctx.lineTo((left + right) / 2 + marker * 0.6, bottom);
+        ctx.stroke();
+        ctx.restore();
     }
 
     drawStone(x, y, radius, color) {
@@ -387,9 +418,10 @@ class Go2DApp {
     }
 
     updateUI() {
-        this.boundaryEl.textContent = this.logic.topology === 'pbc-x' ? 'PBC left-right' : 'OBC';
-        this.boundaryInfoEl.textContent = this.logic.topology === 'pbc-x'
-            ? 'PBC identifies the left and right edges only. Top and bottom remain open.'
+        const periodic = normalizeTopology(this.logic.topology) === 'pbc';
+        this.boundaryEl.textContent = periodic ? 'PBC x/y' : 'OBC';
+        this.boundaryInfoEl.textContent = periodic
+            ? 'PBC identifies both left-right and top-bottom edges. Every point has periodic neighbors in both board directions.'
             : 'OBC uses ordinary open board edges.';
         this.turnEl.textContent = this.logic.gameOver ? this.resultText() : this.logic.scoringPending ? 'Counting pending' : `${this.capitalize(this.logic.currentPlayer)} to play`;
         this.blackCapturedEl.textContent = `${this.logic.captures.black} ${this.logic.captures.black === 1 ? 'stone' : 'stones'}`;
@@ -463,7 +495,7 @@ class Go2DApp {
     getNetworkSettings() {
         return {
             variant: '2dgo',
-            mode: this.boundarySelect.value === 'pbc-x' ? 'pbcx' : 'obc',
+            mode: this.boundarySelect.value === 'pbc' ? 'pbc' : 'obc',
             size: this.boardSize(),
             timer: Number(this.timerSelect.value) || 0
         };
@@ -484,7 +516,7 @@ class Go2DApp {
         this.stopTimer();
         this.logic.importState(state.logic);
         this.sizeSelect.value = String(this.logic.size);
-        this.boundarySelect.value = this.logic.topology;
+        this.boundarySelect.value = normalizeTopology(this.logic.topology);
         this.timerSelect.value = String(state.timerValue ?? state.timeLimit ?? 0);
         this.timeLimit = Number(state.timeLimit) || 0;
         this.timeRemaining = {

@@ -7,6 +7,9 @@ const DICTIONARY = {
             english: 'English',
             chinese: 'Chinese'
         },
+        navigation: {
+            home: 'Home'
+        },
         app: {
             title: 'Torus Chess',
             tagline: '2D chess on a longer 3D torus: 8 cells around the short side and a 14-row route through the extended direction.',
@@ -134,12 +137,14 @@ const DICTIONARY = {
             names: {
                 periodic: 'T2 periodic',
                 rp2: 'RP2 antipodal',
-                mobius: 'Mobius twist'
+                mobius: 'Mobius twist',
+                sphere: 'S1 sphere'
             },
             info: {
                 periodic: 'T2 uses 112 playable blocks shown as an 8-cell short winding and a 14-row long direction. The six extra blank rows sit between the initial armies, and both directions wrap periodically.',
                 rp2: 'RP2 uses one 12x14 fundamental board. Crossing a boundary lands on the opposite edge with the matched coordinate reversed, and the raised cage arrows show the antipodal gluing.',
-                mobius: 'Mobius uses two full 8x8 surface sides. The lateral x edges are open; crossing the winding y edge reverses x and lands on the opposite side. The armies start on matching coordinates on opposite normals.'
+                mobius: 'Mobius uses two full 8x8 surface sides. The lateral x edges are open; crossing the winding y edge reverses x and lands on the opposite side. The armies start on matching coordinates on opposite normals.',
+                sphere: 'Sphere chess uses 16 longitudes and 16 latitude rows. Longitude wraps periodically. Polar cap rows are empty/non-playable. Armies start on opposite hemispheres. Pawns promote only by entering the opponent\'s original 8-piece king-row block.'
             }
         },
         boundary: {
@@ -148,7 +153,8 @@ const DICTIONARY = {
                 reflection: 'Reflection',
                 periodic: 'Periodic',
                 rp2: 'RP2 antipodal',
-                mobius: 'Mobius twist'
+                mobius: 'Mobius twist',
+                sphere: 'S1 sphere'
             },
             info: {
                 forbidden: 'Forbidden: pieces cannot move outside the 8x8x8 cube.',
@@ -222,15 +228,18 @@ const DICTIONARY = {
     },
     zh: {
         language: {
-            label: '语言',
+            label: '語言',
             english: 'English',
-            chinese: '中文'
+            chinese: '繁體中文'
+        },
+        navigation: {
+            home: '首頁'
         },
         app: {
-            title: 'T2 环面棋',
-            tagline: '在加长三维环面上的二维国际象棋：短方向 8 格，长方向 14 行。',
-            canvasLabel: '三维环面棋盘',
-            movePickerLabel: '走法选择器'
+            title: 'T2 環面棋',
+            tagline: '在加長三維環面上的二維國際象棋：短方向 8 格，長方向 14 行。',
+            canvasLabel: '三維環面棋盤',
+            movePickerLabel: '走法選擇器'
         },
         colors: {
             white: '白方',
@@ -239,9 +248,9 @@ const DICTIONARY = {
         pieces: {
             K: '王',
             Q: '后',
-            R: '车',
+            R: '車',
             B: '象',
-            N: '马',
+            N: '馬',
             P: '兵',
             piece: '棋子'
         },
@@ -250,176 +259,176 @@ const DICTIONARY = {
             queenside: '后翼'
         },
         turn: {
-            gameOver: '游戏结束',
+            gameOver: '遊戲結束',
             toMove: ({ color }, lang) => label(lang, 'colors.' + color) + '走棋'
         },
         captured: {
             byWhite: '白方吃子',
             byBlack: '黑方吃子',
-            none: '无'
+            none: '無'
         },
         picker: {
-            movablePieces: '可移动棋子',
+            movablePieces: '可移動棋子',
             availableMoves: '可用走法',
             initialSummary: '白方有合法走法的棋子',
-            selectPiece: '选择棋子',
-            noActiveSelection: '未选择棋子',
-            destinationsOnTurn: '轮到你时显示目标格。',
-            selectPieceDestinations: '选择一个可移动棋子来列出目标格。',
-            gameOver: '游戏结束',
-            connectOnline: '连接在线对手后才能移动',
+            selectPiece: '選擇棋子',
+            noActiveSelection: '未選擇棋子',
+            destinationsOnTurn: '輪到你時顯示目標格。',
+            selectPieceDestinations: '選擇一個可移動棋子來列出目標格。',
+            gameOver: '遊戲結束',
+            connectOnline: '連線至線上對手後才能移動',
             waitingForColor: ({ color }, lang) => '等待' + label(lang, 'colors.' + color),
-            movableSummary: ({ color, count }, lang) => label(lang, 'colors.' + color) + '有 ' + count + ' 个可移动棋子',
-            noMovable: '没有可移动棋子。',
-            selectedSummary: ({ type, coord, count }, lang) => label(lang, 'pieces.' + type) + ' ' + coord + ' -> ' + count + ' 个目标格',
-            noDestinations: '这个棋子没有合法目标格。',
+            movableSummary: ({ color, count }, lang) => label(lang, 'colors.' + color) + '有 ' + count + ' 個可移動棋子',
+            noMovable: '沒有可移動棋子。',
+            selectedSummary: ({ type, coord, count }, lang) => label(lang, 'pieces.' + type) + ' ' + coord + ' -> ' + count + ' 個目標格',
+            noDestinations: '這個棋子沒有合法目標格。',
             castleMove: ({ side }) => '易位 ' + (side === 'kingside' ? '王翼' : '后翼')
         },
         controls: {
-            title: '游戏控制',
-            gameMode: '游戏模式',
-            local: '本地轮流',
-            online: '在线多人',
-            boardGame: '棋盘模式',
-            boundary: '边界条件',
-            topology: '拓扑',
-            timer: '每方时间',
-            resetCamera: '重置视角',
-            newGame: '新游戏',
+            title: '遊戲控制',
+            gameMode: '遊戲模式',
+            local: '本地輪流',
+            online: '線上多人',
+            boardGame: '棋盤模式',
+            boundary: '邊界條件',
+            topology: '拓撲',
+            timer: '每方時間',
+            resetCamera: '重設視角',
+            newGame: '新遊戲',
             offerDraw: '提和',
-            surrender: '认输'
+            surrender: '認輸'
         },
         online: {
-            localStatus: '本地轮流',
-            selectedStatus: '已选择在线模式。',
+            localStatus: '本地輪流',
+            selectedStatus: '已選擇線上模式。',
             youAre: ({ color }, lang) => '你是' + label(lang, 'colors.' + color) + '。',
-            disconnected: '未连接',
-            connectingRoom: '正在创建在线房间...',
-            roomCodeRetry: '房间码被占用，正在重试...',
-            roomReadyConnection: '房间已准备好，请分享链接。',
-            roomReadyGame: '房间已准备好。你是白方，等待黑方加入。',
-            resumingRoom: '正在恢复同一房间...',
-            holdingRoom: ({ room }) => '连接断开。继续保持房间 ' + (room || '') + ' 等待重连。',
-            reconnecting: '正在重连信令...',
-            enterRoom: '请输入房间 ID 或分享链接。',
-            joiningRoom: '正在加入房间...',
-            joiningAsWhite: '作为白方加入房间...',
-            joiningAsBlack: '作为黑方加入房间...',
-            joiningShared: '正在加入分享房间...',
-            joiningSharedGame: '正在加入分享的在线房间...',
-            matchmakingSearch: '正在搜索匹配空间...',
-            matchmakingWaiting: '正在匹配空间等待...',
-            matchmakingRetry: '该匹配槽忙，正在尝试另一个...',
-            matchmakingTimeout: '还没有对手回应，继续搜索...',
-            webrtcChecking: '正在寻找两位玩家之间的网络路径...',
-            webrtcFailed: 'WebRTC 无法连接这两个网络。请保持白方房间开启，必要时换网络。',
-            connectedWhite: '已连接为白方',
-            connectedBlack: '已连接为黑方',
-            connectedGame: ({ color }, lang) => '已连接。你是' + label(lang, 'colors.' + color) + '。',
-            opponentDisconnected: '对手已断线',
-            opponentDisconnectedGame: '对手已断线。请创建或加入新房间继续。',
-            wrongGame: '该房间属于另一个棋盘模式。',
-            wrongGameMatch: '匹配到不同棋盘模式，继续搜索...',
-            roomFull: '房间已满',
-            roomFullGame: '该房间已有两名玩家。',
-            peerUnavailable: '找不到房间。请让白方重新创建链接。',
-            networkError: '网络错误，请检查连接后重试。',
-            peerMissing: 'PeerJS 未加载，请检查网络并刷新。',
-            findMatch: '寻找匹配',
-            privateRoom: '私人房间',
-            createRoom: '创建房间',
-            joinRoom: '加入房间',
+            disconnected: '未連線',
+            connectingRoom: '正在建立線上房間...',
+            roomCodeRetry: '房間碼已被使用，正在重試...',
+            roomReadyConnection: '房間已準備好，請分享連結。',
+            roomReadyGame: '房間已準備好。你是白方，等待黑方加入。',
+            resumingRoom: '正在恢復同一房間...',
+            holdingRoom: ({ room }) => '連線中斷。繼續保留房間 ' + (room || '') + ' 等待重連。',
+            reconnecting: '正在重新連接信令...',
+            enterRoom: '請輸入房間 ID 或分享連結。',
+            joiningRoom: '正在加入房間...',
+            joiningAsWhite: '以白方身分加入房間...',
+            joiningAsBlack: '以黑方身分加入房間...',
+            joiningShared: '正在加入分享房間...',
+            joiningSharedGame: '正在加入分享的線上房間...',
+            matchmakingSearch: '正在搜尋配對空間...',
+            matchmakingWaiting: '正在配對空間等待...',
+            matchmakingRetry: '此配對槽忙碌，正在嘗試另一個...',
+            matchmakingTimeout: '尚無對手回應，繼續搜尋...',
+            webrtcChecking: '正在尋找兩位玩家之間的網路路徑...',
+            webrtcFailed: 'WebRTC 無法連接這兩個網路。請保持白方房間開啟，必要時更換網路。',
+            connectedWhite: '已連線為白方',
+            connectedBlack: '已連線為黑方',
+            connectedGame: ({ color }, lang) => '已連線。你是' + label(lang, 'colors.' + color) + '。',
+            opponentDisconnected: '對手已斷線',
+            opponentDisconnectedGame: '對手已斷線。請建立或加入新房間繼續。',
+            wrongGame: '此房間屬於另一個棋盤模式。',
+            wrongGameMatch: '配對到不同棋盤模式，繼續搜尋...',
+            roomFull: '房間已滿',
+            roomFullGame: '此房間已有兩名玩家。',
+            peerUnavailable: '找不到房間。請讓白方重新建立連結。',
+            networkError: '網路錯誤，請檢查連線後重試。',
+            peerMissing: 'PeerJS 未載入，請檢查網路並重新整理。',
+            findMatch: '尋找配對',
+            privateRoom: '私人房間',
+            createRoom: '建立房間',
+            joinRoom: '加入房間',
             or: '或',
-            roomInput: '5 位房间码或分享链接',
-            roomId: '房间码',
-            copy: '复制'
+            roomInput: '5 位房間碼或分享連結',
+            roomId: '房間碼',
+            copy: '複製'
         },
         topology: {
             names: {
-                periodic: 'T2 周期',
+                periodic: 'T2 週期',
                 rp2: 'RP2 对映',
-                mobius: 'Mobius 扭转'
+                mobius: 'Mobius 扭轉'
             },
             info: {
-                periodic: 'T2 使用 112 个可用格：短方向 8 格、长方向 14 行。初始双方之间加入六行空格，两个方向都周期连接。',
-                rp2: 'RP2 使用一个 12x14 基本棋盘。越过边界会到达对边并反转对应坐标，升起的箭头显示对映粘合。',
-                mobius: 'Mobius 使用两个完整 8x8 表面。横向 x 边界开放；穿过缠绕 y 边界会反转 x 并到达另一面。'
+                periodic: 'T2 使用 112 個可用格：短方向 8 格、長方向 14 行。初始雙方之間加入六行空格，兩個方向皆為週期連接。',
+                rp2: 'RP2 使用一個 12x14 基本棋盤。越過邊界會到達對邊並反轉對應座標，升起的箭頭顯示對映黏合。',
+                mobius: 'Mobius 使用兩個完整 8x8 表面。橫向 x 邊界開放；穿過纏繞 y 邊界會反轉 x 並到達另一面。'
             }
         },
         boundary: {
             names: {
                 forbidden: '禁止越界',
                 reflection: '反射',
-                periodic: '周期',
+                periodic: '週期',
                 rp2: 'RP2 对映',
-                mobius: 'Mobius 扭转'
+                mobius: 'Mobius 扭轉'
             },
             info: {
-                forbidden: '禁止越界：棋子不能走出 8x8x8 立方体。',
-                reflection: '反射：到达边界的走法会反弹回棋盘。',
-                periodic: '周期：从一侧离开会从相对侧进入。'
+                forbidden: '禁止越界：棋子不能走出 8x8x8 立方體。',
+                reflection: '反射：到達邊界的走法會反彈回棋盤。',
+                periodic: '週期：從一側離開會從相對側進入。'
             }
         },
         timer: {
-            noTimer: '无计时',
-            fiveMinutes: '5 分钟',
-            tenMinutes: '10 分钟',
-            fifteenMinutes: '15 分钟',
-            thirtyMinutes: '30 分钟',
-            oneHour: '1 小时',
-            twoHours: '2 小时',
-            threeHours: '3 小时',
-            twentyFourHours: '24 小时'
+            noTimer: '無計時',
+            fiveMinutes: '5 分鐘',
+            tenMinutes: '10 分鐘',
+            fifteenMinutes: '15 分鐘',
+            thirtyMinutes: '30 分鐘',
+            oneHour: '1 小時',
+            twoHours: '2 小時',
+            threeHours: '3 小時',
+            twentyFourHours: '24 小時'
         },
         history: {
-            title: '走法记录',
-            started: '游戏开始。',
+            title: '走法記錄',
+            started: '遊戲開始。',
             castle: ({ color, side, from, to }, lang) => label(lang, 'colors.' + color) + label(lang, 'pieces.K') + ' ' + label(lang, 'sides.' + side) + '易位 ' + from + ' -> ' + to,
             move: ({ color, type, from, to, capturedType, promotionType }, lang) => {
                 const capture = capturedType ? ' 吃 ' + label(lang, 'pieces.' + capturedType) : '';
-                const promotion = promotionType ? ' 升变为 ' + label(lang, 'pieces.' + promotionType) : '';
+                const promotion = promotionType ? ' 升變為 ' + label(lang, 'pieces.' + promotionType) : '';
                 return label(lang, 'colors.' + color) + label(lang, 'pieces.' + type) + ' ' + from + ' -> ' + to + capture + promotion;
             }
         },
         rules: {
-            title: '环面规则',
-            text: '车、象、后、马、王、易位、吃过路兵、将军与将死都使用 112 个环面格上的二维国际象棋走法。棋盘为 8 列 x 14 个周期行，双方初始阵之间有六行空格。兵到达对方底线时升变。'
+            title: '環面規則',
+            text: '車、象、后、馬、王、易位、吃過路兵、將軍與將死都使用 112 個環面格上的二維國際象棋走法。棋盤為 8 列 x 14 個週期行，雙方初始陣之間有六行空格。兵到達對方底線時升變。'
         },
         hints: {
             label: '走法提示'
         },
         promotion: {
-            title: '兵升变为'
+            title: '兵升變為'
         },
         status: {
-            start: '请选择一个白方棋子开始。',
-            connectBeforeMove: '在线模式需要先连接对手。',
+            start: '請選擇一個白方棋子開始。',
+            connectBeforeMove: '線上模式需要先連接對手。',
             waitingForMove: ({ color }, lang) => '等待' + label(lang, 'colors.' + color) + '走棋。',
-            selectionCleared: '选择已清除。',
-            choosePieceFirst: '请先选择你的棋子。',
-            turnOnly: ({ color }, lang) => '现在是' + label(lang, 'colors.' + color) + '回合。',
-            pieceSelected: ({ color, type, coord, count }, lang) => label(lang, 'colors.' + color) + label(lang, 'pieces.' + type) + '已选中于 ' + coord + '，有 ' + count + ' 个合法走法。',
-            targetSelected: ({ coord }) => '已选择 ' + coord + '。再次点击同一黄色目标格以移动。',
-            movePlayed: ({ color }, lang) => '已走棋。轮到' + label(lang, 'colors.' + color) + '。',
-            checkmateWin: ({ color }, lang) => label(lang, 'colors.' + color) + '将死获胜。',
-            stalemate: '逼和，游戏平局。',
-            inCheck: ({ color }, lang) => label(lang, 'colors.' + color) + '被将军。',
-            timeWin: ({ color }, lang) => label(lang, 'colors.' + color) + '超时获胜。',
-            newGame: '新游戏开始。请选择白方棋子。',
-            roomLinkCopied: '房间链接已复制。',
-            resignationWin: ({ color }, lang) => label(lang, 'colors.' + color) + '因对手认输获胜。',
-            drawOfferSent: '已发送和棋请求。',
-            drawAgreed: '双方同意和棋。',
+            selectionCleared: '選擇已清除。',
+            choosePieceFirst: '請先選擇你的棋子。',
+            turnOnly: ({ color }, lang) => '現在是' + label(lang, 'colors.' + color) + '回合。',
+            pieceSelected: ({ color, type, coord, count }, lang) => label(lang, 'colors.' + color) + label(lang, 'pieces.' + type) + '已選中於 ' + coord + '，有 ' + count + ' 個合法走法。',
+            targetSelected: ({ coord }) => '已選擇 ' + coord + '。再次點擊同一黃色目標格以移動。',
+            movePlayed: ({ color }, lang) => '已走棋。輪到' + label(lang, 'colors.' + color) + '。',
+            checkmateWin: ({ color }, lang) => label(lang, 'colors.' + color) + '將死獲勝。',
+            stalemate: '逼和，遊戲和局。',
+            inCheck: ({ color }, lang) => label(lang, 'colors.' + color) + '被將軍。',
+            timeWin: ({ color }, lang) => label(lang, 'colors.' + color) + '逾時獲勝。',
+            newGame: '新遊戲開始。請選擇白方棋子。',
+            roomLinkCopied: '房間連結已複製。',
+            resignationWin: ({ color }, lang) => label(lang, 'colors.' + color) + '因對手認輸獲勝。',
+            drawOfferSent: '已傳送和棋請求。',
+            drawAgreed: '雙方同意和棋。',
             drawAccepted: '已接受和棋。',
-            hintsHidden: '已隐藏走法提示。',
-            hintsShown: '已显示走法提示。'
+            hintsHidden: '已隱藏走法提示。',
+            hintsShown: '已顯示走法提示。'
         },
         alerts: {
-            modeLocked: '游戏开始或在线连接后不能更改模式。',
-            boundaryLocked: '游戏开始或在线连接后不能更改边界。',
-            topologyLocked: '游戏开始或在线连接后不能更改拓扑。',
-            timerLocked: '游戏开始或在线连接后不能更改计时。',
-            drawPrompt: '同意和棋吗？'
+            modeLocked: '遊戲開始或線上連線後不能更改模式。',
+            boundaryLocked: '遊戲開始或線上連線後不能更改邊界。',
+            topologyLocked: '遊戲開始或線上連線後不能更改拓撲。',
+            timerLocked: '遊戲開始或線上連線後不能更改計時。',
+            drawPrompt: '同意和棋嗎？'
         }
     }
 };
@@ -456,7 +465,7 @@ export function t(key, params = {}) {
 }
 
 export function applyLanguage(root = document) {
-    document.documentElement.lang = I18N.current;
+    document.documentElement.lang = I18N.current === 'zh' ? 'zh-Hant' : 'en';
     document.title = t('app.title');
 
     root.querySelectorAll('[data-i18n]').forEach((element) => {

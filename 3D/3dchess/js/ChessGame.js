@@ -1,6 +1,7 @@
 import { CubeChessGame } from './CubeChessGame.js';
 import { MobiusChessGame } from './MobiusChessGame.js';
 import { RP2ChessGame } from './RP2ChessGame.js';
+import { SphereChessGame } from './SphereChessGame.js';
 import { TorusChessGame } from './TorusChessGame.js';
 import { I18N, setLanguage } from './i18n.js';
 
@@ -15,11 +16,11 @@ const VARIANTS = {
         boundaryValue: 'periodic',
         controller: TorusChessGame,
         zh: {
-                  "title": "T2 环面棋",
-                  "tagline": "在加长三维环面上的二维国际象棋：短方向 8 格，长方向 14 行。",
-                  "canvasLabel": "三维环面棋盘",
-                  "rulesTitle": "环面规则",
-                  "rulesText": "车、象、后、马、王、易位、吃过路兵、将军与将死都使用 112 个环面格上的二维国际象棋走法。棋盘为 8 列 x 14 个周期行，双方初始阵之间有六行空格。兵到达对方底线时升变。"
+                  "title": "T2 環面棋",
+                  "tagline": "在加長三維環面上的二維國際象棋：短方向 8 格，長方向 14 行。",
+                  "canvasLabel": "三維環面棋盤",
+                  "rulesTitle": "環面規則",
+                  "rulesText": "車、象、后、馬、王、易位、吃過路兵、將軍與將死都使用 112 個環面格上的二維國際象棋走法。棋盤為 8 列 x 14 個週期行，雙方初始陣之間有六行空格。兵到達對方底線時升變。"
         }
     },
     cube: {
@@ -32,11 +33,11 @@ const VARIANTS = {
         boundaryValue: 'forbidden',
         controller: CubeChessGame,
         zh: {
-                  "title": "R3 三维棋",
-                  "tagline": "支持本地与在线的立方体国际象棋，使用完整三维走法。",
-                  "canvasLabel": "三维棋盘",
-                  "rulesTitle": "三维走法",
-                  "rulesText": "车沿坐标轴走，象沿平面与空间对角线走，后可走所有三维直线，马在任意平面跳 2-1，王向任意方向走一格。兵沿 X、Y 或 Z 前进并斜向吃子。"
+                  "title": "R3 三維棋",
+                  "tagline": "支援本地與線上的立方體國際象棋，使用完整三維走法。",
+                  "canvasLabel": "三維棋盤",
+                  "rulesTitle": "三維走法",
+                  "rulesText": "車沿座標軸走，象沿平面與空間對角線走，后可走所有三維直線，馬在任意平面跳 2-1，王向任意方向走一格。兵沿 X、Y 或 Z 前進並斜向吃子。"
         }
     },
     rp2: {
@@ -50,10 +51,10 @@ const VARIANTS = {
         controller: RP2ChessGame,
         zh: {
                   "title": "RP2 棋",
-                  "tagline": "在一个 12x14 RP2 基本棋盘上进行二维国际象棋，并使用对映边界粘合。",
-                  "canvasLabel": "三维 RP2 棋盘",
-                  "rulesTitle": "RP2 规则",
-                  "rulesText": "棋子在一个 12x14 RP2 棋盘上使用二维国际象棋走法。穿过左右边界会到达对边并反转 y；穿过上下边界会到达对边并反转 x。越界提示会点亮升起的绿色映射箭头。"
+                  "tagline": "在一個 12x14 RP2 基本棋盤上進行二維國際象棋，並使用對映邊界黏合。",
+                  "canvasLabel": "三維 RP2 棋盤",
+                  "rulesTitle": "RP2 規則",
+                  "rulesText": "棋子在一個 12x14 RP2 棋盤上使用二維國際象棋走法。穿過左右邊界會到達對邊並反轉 y；穿過上下邊界會到達對邊並反轉 x。越界提示會點亮升起的綠色映射箭頭。"
         }
     },
     mobius: {
@@ -67,16 +68,37 @@ const VARIANTS = {
         controller: MobiusChessGame,
         zh: {
                   "title": "Mobius 棋",
-                  "tagline": "在可旋转 Mobius 带上进行二维国际象棋，横向边界开放且两面都可走。",
-                  "canvasLabel": "三维 Mobius 棋盘",
-                  "rulesTitle": "Mobius 规则",
-                  "rulesText": "棋子在 Mobius 带两面使用二维国际象棋走法。横向 x 边界开放；穿过缠绕 y 边界会经过扭转、反转 x 并到达另一面。双方从相同坐标的相反表面出发。"
+                  "tagline": "在可旋轉 Mobius 帶上進行二維國際象棋，橫向邊界開放且兩面皆可走。",
+                  "canvasLabel": "三維 Mobius 棋盤",
+                  "rulesTitle": "Mobius 規則",
+                  "rulesText": "棋子在 Mobius 帶兩面使用二維國際象棋走法。橫向 x 邊界開放；穿過纏繞 y 邊界會經過扭轉、反轉 x 並到達另一面。雙方從相同座標的相反表面出發。"
+        }
+    },
+    sphere: {
+        label: 'S2',
+        title: 'Sphere Chess',
+        tagline: '2D chess on a latitude-longitude sphere with periodic longitude and empty polar caps.',
+        canvasLabel: '3D sphere chess board',
+        rulesTitle: 'Sphere Rules',
+        rulesText: 'Sphere chess uses 16 longitudes and 16 latitude rows. Longitude wraps periodically. Polar cap rows are empty/non-playable. Armies start on opposite hemispheres. Pawns promote only by entering the opponent\'s original 8-piece king-row block.',
+        boundaryValue: 'sphere',
+        controller: SphereChessGame,
+        zh: {
+            title: '球面棋',
+            tagline: '在經緯度球面上進行二維國際象棋，經度方向週期連接，兩極帽列不可走。',
+            canvasLabel: '三維球面棋盤',
+            rulesTitle: '球面規則',
+            rulesText: '球面棋使用 16 條經度與 16 列緯度。經度方向週期連接；兩極帽列為空且不可走。雙方位於相對半球。兵只有進入對手原始八枚主棋所在列時才能升變。'
         }
     }
 };
 
 const DEFAULT_VARIANT = 'torus';
 const STORAGE_KEY = '3dchess:selectedVariant';
+
+function normalizeVariant(value) {
+    return value === 's2' ? 'sphere' : value;
+}
 
 export class ChessGame {
     constructor() {
@@ -94,18 +116,18 @@ export class ChessGame {
 
     resolveVariant() {
         const params = new URLSearchParams(window.location.search);
-        const fromUrl = params.get('variant') || params.get('game') || '';
+        const fromUrl = normalizeVariant(params.get('variant') || params.get('game') || '');
         if (this.isVariant(fromUrl)) {
             window.localStorage.setItem(STORAGE_KEY, fromUrl);
             return fromUrl;
         }
 
-        const stored = window.localStorage.getItem(STORAGE_KEY) || '';
+        const stored = normalizeVariant(window.localStorage.getItem(STORAGE_KEY) || '');
         return this.isVariant(stored) ? stored : DEFAULT_VARIANT;
     }
 
     isVariant(value) {
-        return Object.prototype.hasOwnProperty.call(VARIANTS, value);
+        return Object.prototype.hasOwnProperty.call(VARIANTS, normalizeVariant(value));
     }
 
     prepareVariantControls() {
@@ -140,7 +162,7 @@ export class ChessGame {
         if (!boardGameSelect) return;
 
         boardGameSelect.addEventListener('change', () => {
-            const nextVariant = boardGameSelect.value;
+            const nextVariant = normalizeVariant(boardGameSelect.value);
             this.switchVariant(nextVariant);
             if (nextVariant !== this.variant) boardGameSelect.value = this.variant;
         });
@@ -194,6 +216,7 @@ export class ChessGame {
     }
 
     switchVariant(nextVariant) {
+        nextVariant = normalizeVariant(nextVariant);
         if (!this.isVariant(nextVariant) || nextVariant === this.variant) return;
 
         if (this.activeGame?.gameStarted && !this.activeGame?.gameOver) {
