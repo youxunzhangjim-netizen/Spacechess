@@ -29,6 +29,7 @@ run(['run', 'build', '--workspace', '3dgo']);
 const launcherOutput = join(root, '.launcher-dist');
 await viteBuild({
     root,
+    base: './',
     build: {
         outDir: launcherOutput,
         emptyOutDir: true
