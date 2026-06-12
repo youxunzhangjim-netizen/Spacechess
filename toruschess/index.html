@@ -33,8 +33,6 @@
     </script>
 </head>
 <body>
-    <a class="space-home-link" href="../" aria-label="Back to Space Chess picker">Home</a>
-
     <main class="app-shell">
         <section class="play-area">
             <header class="top-bar">
@@ -92,7 +90,10 @@
         </section>
 
         <aside class="sidebar">
-            <h2 data-i18n="controls.title">Game Controls</h2>
+            <div class="sidebar-header">
+                <h2 data-i18n="controls.title">Game Controls</h2>
+                <a class="space-home-link" href="../" aria-label="Back to Space Chess picker">Home</a>
+            </div>
 
             <div class="status-card">
                 <div class="status-line" id="gameStatus">Select a white piece to begin.</div>

@@ -8,8 +8,6 @@
     <script src="./vendor/peerjs.min.js"></script>
 </head>
 <body>
-    <a class="space-home-link" href="../" aria-label="Back to Space Chess picker">Home</a>
-
     <div class="container">
         <div class="header">
             <h1 data-i18n="app.title">2D Chess with Boundary Conditions</h1>
@@ -51,7 +49,10 @@
             </div>
 
             <div class="sidebar">
-                <h2 data-i18n="controls.title">Game Controls</h2>
+                <div class="sidebar-header">
+                    <h2 data-i18n="controls.title">Game Controls</h2>
+                    <a class="space-home-link" href="../" aria-label="Back to Space Chess picker">Home</a>
+                </div>
 
                 <div class="status">
                     <p><span class="player-turn" id="playerTurn">White's Turn</span></p>
