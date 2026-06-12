@@ -204,10 +204,7 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
     }
 
     visibleBoundaryIndices(count) {
-        if (count <= 4) return Array.from({ length: count }, (_, index) => index);
-        const midLow = Math.floor((count - 1) / 2);
-        const midHigh = Math.ceil((count - 1) / 2);
-        return [...new Set([0, midLow, midHigh, count - 1])].sort((a, b) => a - b);
+        return Array.from({ length: count }, (_, index) => index);
     }
 
     aliasMissingBoundaryKeys(side, count, visibleIndices) {
@@ -241,62 +238,80 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
             : this.boardWidth() - 1 - index;
         const start = this.edgePoint(side, index, 0, 1.68);
         const end = this.edgePoint(toSide, reversedIndex, toSheet, 1.68);
-        const apex = new THREE.Vector3(0, this.boardLift + 1.68 + this.cageHeight, 0);
+        const maxIndex = horizontal ? this.boardHeight() - 1 : this.boardWidth() - 1;
+        const normalized = maxIndex === 0 ? 0 : (index / maxIndex) * 2 - 1;
+        const domeAmount = Math.sqrt(Math.max(0, 1 - normalized * normalized));
+        const apex = start.clone().add(end).multiplyScalar(0.5);
+        apex.y = this.boardLift + 1.68 + THREE.MathUtils.lerp(this.cageHeight * 0.68, this.cageHeight, domeAmount);
+        if (horizontal) {
+            apex.z = normalized * this.boardSpanZ() * 0.42;
+        } else {
+            apex.x = normalized * this.boardSpanX() * 0.42;
+        }
+
         const curve = new THREE.CatmullRomCurve3([start, apex, end], false, 'centripetal', 0.42);
         const lineMaterial = new THREE.MeshBasicMaterial({
-            color: horizontal ? 0x67e8f9 : 0xfbbf24,
+            color: horizontal ? 0xa5f3fc : 0xfde68a,
             transparent: true,
-            opacity: 0.32,
+            opacity: 0.82,
             depthWrite: false,
             depthTest: true
         });
         const arrowMaterial = new THREE.MeshStandardMaterial({
-            color: horizontal ? 0x67e8f9 : 0xfbbf24,
-            emissive: horizontal ? 0x0891b2 : 0xf59e0b,
-            emissiveIntensity: 0.56,
-            roughness: 0.28,
+            color: horizontal ? 0xa5f3fc : 0xfde68a,
+            emissive: horizontal ? 0x22d3ee : 0xfbbf24,
+            emissiveIntensity: 0.82,
+            roughness: 0.22,
             transparent: true,
-            opacity: 0.74
+            opacity: 0.9
         });
         const key = this.game.boundaryCrossingKey(fromSheet, side, index);
         const aliasKey = this.game.boundaryCrossingKey(toSheet, toSide, reversedIndex);
         const line = this.createLinkCurve(curve, lineMaterial, key);
-        const arrow = this.createArrowAt(curve.getPoint(0.5), curve.getTangent(0.5), arrowMaterial, key);
+        const arrows = this.createEdgeArrows(curve, arrowMaterial, key);
 
         const sharedLink = {
             key,
             line,
-            arrow,
+            arrows,
             lineColor: lineMaterial.color.clone(),
             lineOpacity: lineMaterial.opacity,
             arrowColor: arrowMaterial.color.clone(),
+            arrowOpacity: arrowMaterial.opacity,
             arrowEmissive: arrowMaterial.emissive.clone(),
             arrowEmissiveIntensity: arrowMaterial.emissiveIntensity,
-            glowPosition: apex.clone()
+            glowPosition: curve.getPoint(0.16)
         };
 
         this.boundaryLinks.set(key, sharedLink);
         this.boundaryLinks.set(aliasKey, {
             ...sharedLink,
             key: aliasKey,
-            glowPosition: apex.clone()
+            glowPosition: curve.getPoint(0.84)
         });
         this.boardGroup.add(line);
-        this.boardGroup.add(arrow);
+        for (const arrow of arrows) this.boardGroup.add(arrow);
     }
 
     createLinkCurve(curve, material, key = '') {
-        const geometry = new THREE.TubeGeometry(curve, 56, 0.018, 8, false);
+        const geometry = new THREE.TubeGeometry(curve, 56, 0.0065, 8, false);
         const line = new THREE.Mesh(geometry, material);
         line.userData = { type: 'glue-link', key };
         line.renderOrder = 12;
         return line;
     }
 
+    createEdgeArrows(curve, material, key = '') {
+        return [
+            this.createArrowAt(curve.getPoint(0.14), curve.getTangent(0.14), material, key),
+            this.createArrowAt(curve.getPoint(0.86), curve.getTangent(0.86), material, key)
+        ];
+    }
+
     createArrowAt(position, direction, material, key = '') {
-        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.24, 20), material);
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.13, 18), material);
         const tangent = direction.clone().normalize();
-        cone.position.copy(position).add(tangent.clone().multiplyScalar(-0.12));
+        cone.position.copy(position).add(tangent.clone().multiplyScalar(-0.055));
         cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
         cone.userData = { type: 'glue-arrow', key };
         return cone;
@@ -384,9 +399,12 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
 
                 link.line.material.color.set(0x22c55e);
                 link.line.material.opacity = 0.96;
-                link.arrow.material.color.set(0x22c55e);
-                link.arrow.material.emissive.set(0x22c55e);
-                link.arrow.material.emissiveIntensity = 0.9;
+                for (const arrow of link.arrows || []) {
+                    arrow.material.color.set(0x22c55e);
+                    arrow.material.opacity = 0.98;
+                    arrow.material.emissive.set(0x22c55e);
+                    arrow.material.emissiveIntensity = 0.95;
+                }
 
                 const glow = new THREE.Mesh(new THREE.SphereGeometry(0.12, 20, 14), material);
                 glow.position.copy(link.glowPosition);
@@ -404,9 +422,12 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         for (const link of this.boundaryLinks.values()) {
             link.line.material.color.copy(link.lineColor);
             link.line.material.opacity = link.lineOpacity;
-            link.arrow.material.color.copy(link.arrowColor);
-            link.arrow.material.emissive.copy(link.arrowEmissive);
-            link.arrow.material.emissiveIntensity = link.arrowEmissiveIntensity;
+            for (const arrow of link.arrows || []) {
+                arrow.material.color.copy(link.arrowColor);
+                arrow.material.opacity = link.arrowOpacity;
+                arrow.material.emissive.copy(link.arrowEmissive);
+                arrow.material.emissiveIntensity = link.arrowEmissiveIntensity;
+            }
         }
     }
 

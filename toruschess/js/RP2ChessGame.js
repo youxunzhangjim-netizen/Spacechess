@@ -437,16 +437,18 @@ export class RP2ChessGame {
         const moves = [];
 
         for (const dx of [-1, 1]) {
-            const target = this.resolveTarget(x + dx, y + direction, sheet, dx, direction);
+            for (const dy of [-1, 1]) {
+                const target = this.resolveTarget(x + dx, y + dy, sheet, dx, dy);
 
-            if (forAttack) {
-                moves.push({ ...target, capture: true });
-                continue;
-            }
+                if (forAttack) {
+                    moves.push({ ...target, capture: true });
+                    continue;
+                }
 
-            const targetPiece = this.getPiece(target.x, target.y, target.sheet);
-            if (targetPiece && targetPiece.color !== piece.color && targetPiece.type !== 'K') {
-                moves.push({ ...target, capture: true });
+                const targetPiece = this.getPiece(target.x, target.y, target.sheet);
+                if (targetPiece && targetPiece.color !== piece.color && targetPiece.type !== 'K') {
+                    moves.push({ ...target, capture: true });
+                }
             }
         }
 

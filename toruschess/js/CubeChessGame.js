@@ -450,8 +450,7 @@ export class CubeChessGame {
             for (let dy = -1; dy <= 1; dy++) {
                 for (let dz = -1; dz <= 1; dz++) {
                     const activeAxes = [dx, dy, dz].filter((value) => value !== 0).length;
-                    const progressesTowardEnemy = [dx, dy, dz].some((value) => value === dir);
-                    if (activeAxes >= 2 && progressesTowardEnemy) {
+                    if (activeAxes >= 2) {
                         vectors.push([dx, dy, dz]);
                     }
                 }
