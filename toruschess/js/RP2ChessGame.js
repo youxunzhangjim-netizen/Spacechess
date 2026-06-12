@@ -89,9 +89,9 @@ export class RP2ChessGame {
     setupBoard3D() {
         this.board = this.createEmptyBoard();
         for (const { x, y, type } of this.createWhiteInitialPieces()) {
-            this.setPiece(x, y, 0, createPiece('white', type));
+            this.setPiece(x, y, 0, this.createInitialPiece('white', type, y, 0));
             const mirror = this.antipodeCoord(x, y);
-            this.setPiece(mirror.x, mirror.y, 0, createPiece('black', type));
+            this.setPiece(mirror.x, mirror.y, 0, this.createInitialPiece('black', type, mirror.y, 0));
         }
         this.enPassantTarget = null;
         this.renderer.renderPieces3D(this.board);
@@ -130,8 +130,31 @@ export class RP2ChessGame {
         return RP2_HOME_ROWS[color];
     }
 
+    createInitialPiece(color, type, row, sheet = 0) {
+        return type === 'P' ? this.createPawn(color, row, sheet) : createPiece(color, type);
+    }
+
+    createPawn(color, row, sheet = 0) {
+        const pawn = createPiece(color, 'P');
+        pawn.pawnDirection = this.pawnDirectionFromHome(color, row, sheet);
+        return pawn;
+    }
+
     pawnDirection(color) {
         return RP2_PAWN_DIR[color];
+    }
+
+    pawnDirectionFromHome(color, row, sheet = 0) {
+        const homeRow = this.homeRow(color);
+        if (row < homeRow) return -1;
+        if (row > homeRow) return 1;
+        return this.pawnDirection(color);
+    }
+
+    pawnForwardDirection(piece, y, sheet = 0) {
+        return piece?.pawnDirection === 1 || piece?.pawnDirection === -1
+            ? piece.pawnDirection
+            : this.pawnDirectionFromHome(piece?.color || 'white', y, sheet);
     }
 
     centralPieceFiles() {
@@ -261,6 +284,9 @@ export class RP2ChessGame {
 
         const movedType = piece.type;
         const castling = legalMove.castling || null;
+        const movingPawnDirection = piece.type === 'P'
+            ? this.pawnForwardDirection(piece, fromCoord.y, fromCoord.sheet)
+            : null;
         let promotion = move.promotion || null;
         if (piece.type === 'P' && this.isPromotionSquare(piece.color, toCoord.x, toCoord.y, toCoord.sheet)) {
             promotion = promotion || await this.choosePromotion(piece.color);
@@ -289,6 +315,11 @@ export class RP2ChessGame {
         if (promotion && PROMOTION_TYPES.includes(promotion)) {
             piece.type = promotion;
             piece.display = piece.color === 'white' ? promotion : promotion.toLowerCase();
+            delete piece.pawnDirection;
+        } else if (piece.type === 'P') {
+            piece.pawnDirection = legalMove.dy === 1 || legalMove.dy === -1
+                ? legalMove.dy
+                : movingPawnDirection;
         }
 
         if (captured) {
@@ -298,7 +329,7 @@ export class RP2ChessGame {
         this.enPassantTarget = legalMove.pawnDoubleJump
             ? {
                 x: legalMove.passThrough?.x ?? toCoord.x,
-                y: legalMove.passThrough?.y ?? this.wrapY(fromCoord.y + this.pawnDirection(piece.color)),
+                y: legalMove.passThrough?.y ?? this.wrapY(fromCoord.y + (movingPawnDirection ?? this.pawnDirection(piece.color))),
                 sheet: legalMove.passThrough?.sheet ?? toCoord.sheet,
                 capturePos: { x: toCoord.x, y: toCoord.y, sheet: toCoord.sheet },
                 color: piece.color
@@ -398,7 +429,7 @@ export class RP2ChessGame {
 
     getPawnMoves(x, y, sheet, forAttack) {
         const piece = this.getPiece(x, y, sheet);
-        const direction = this.pawnDirection(piece.color);
+        const direction = this.pawnForwardDirection(piece, y, sheet);
         const moves = [];
 
         for (const dx of [-1, 1]) {

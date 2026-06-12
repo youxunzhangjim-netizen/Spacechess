@@ -828,12 +828,16 @@ export class RP2NetworkManager {
         if (!piece) return null;
         const type = ['K', 'Q', 'R', 'B', 'N', 'P'].includes(piece.type) ? piece.type : 'P';
         const color = piece.color === 'black' ? 'black' : 'white';
-        return {
+        const cloned = {
             color,
             type,
             display: color === 'white' ? type : type.toLowerCase(),
             hasMoved: Boolean(piece.hasMoved)
         };
+        if (type === 'P' && (piece.pawnDirection === 1 || piece.pawnDirection === -1)) {
+            cloned.pawnDirection = piece.pawnDirection;
+        }
+        return cloned;
     }
 
     cloneTarget(target) {

@@ -17,16 +17,86 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         this.pieceLift = 0.18;
         this.cageHeight = 2.2;
         this.boundaryLinks = new Map();
+        this.planeSpin = {
+            active: false,
+            pointerId: null,
+            lastX: 0,
+            totalDx: 0,
+            dragged: false
+        };
+        this.suppressNextClick = false;
     }
 
     init3D() {
         super.init3D();
+        this.configurePlanarRotation();
         this.resetCamera();
     }
 
     addLighting() {
         super.addLighting();
         this.decorGroup.clear();
+    }
+
+    configurePlanarRotation() {
+        if (!this.controls || !this.renderer?.domElement) return;
+
+        this.controls.noRotate = true;
+        const canvas = this.renderer.domElement;
+        canvas.style.touchAction = 'none';
+
+        canvas.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0) return;
+            this.planeSpin.active = true;
+            this.planeSpin.pointerId = event.pointerId;
+            this.planeSpin.lastX = event.clientX;
+            this.planeSpin.totalDx = 0;
+            this.planeSpin.dragged = false;
+            canvas.setPointerCapture?.(event.pointerId);
+        });
+
+        canvas.addEventListener('pointermove', (event) => {
+            if (!this.planeSpin.active || event.pointerId !== this.planeSpin.pointerId) return;
+
+            const dx = event.clientX - this.planeSpin.lastX;
+            this.planeSpin.lastX = event.clientX;
+            if (Math.abs(dx) < 0.25) return;
+
+            this.planeSpin.totalDx += Math.abs(dx);
+            this.rotateAroundPlaneNormal(-dx * 0.0065);
+            if (this.planeSpin.totalDx > 3) this.planeSpin.dragged = true;
+            event.preventDefault();
+        });
+
+        const finishSpin = (event) => {
+            if (!this.planeSpin.active || event.pointerId !== this.planeSpin.pointerId) return;
+            if (this.planeSpin.dragged) this.suppressNextClick = true;
+            this.planeSpin.active = false;
+            this.planeSpin.pointerId = null;
+            canvas.releasePointerCapture?.(event.pointerId);
+        };
+
+        canvas.addEventListener('pointerup', finishSpin);
+        canvas.addEventListener('pointercancel', finishSpin);
+    }
+
+    rotateAroundPlaneNormal(angle) {
+        if (!this.camera || !this.controls) return;
+        const target = this.controls.target || new THREE.Vector3();
+        const offset = this.camera.position.clone().sub(target);
+        offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+        this.camera.position.copy(target).add(offset);
+        this.camera.up.set(0, 1, 0);
+        this.camera.lookAt(target);
+        this.controls.update();
+    }
+
+    async onMouseClick(event) {
+        if (this.suppressNextClick) {
+            this.suppressNextClick = false;
+            return;
+        }
+        return super.onMouseClick(event);
     }
 
     createBoard3D() {
