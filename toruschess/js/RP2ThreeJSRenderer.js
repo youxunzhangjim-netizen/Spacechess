@@ -15,21 +15,24 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         this.edgeGap = 0.86;
         this.boardLift = 0.03;
         this.pieceLift = 0.18;
-        this.cageHeight = 4.9;
+        this.cageHeight = 8.2;
         this.boundaryLinks = new Map();
         this.planeSpin = {
             active: false,
             pointerId: null,
             lastX: 0,
+            lastY: 0,
             totalDx: 0,
             dragged: false
         };
+        this.minHemispherePolar = 0.08;
+        this.maxHemispherePolar = 1.4;
         this.suppressNextClick = false;
     }
 
     init3D() {
         super.init3D();
-        this.configurePlanarRotation();
+        this.configureUpperHemisphereRotation();
         this.resetCamera();
     }
 
@@ -38,15 +41,17 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         this.decorGroup.clear();
     }
 
-    configurePlanarRotation() {
+    configureUpperHemisphereRotation() {
         if (!this.controls || !this.renderer?.domElement) return;
 
         this.controls.noRotate = true;
+        this.controls.noPan = true;
         const canvas = this.renderer.domElement;
         canvas.style.touchAction = 'none';
 
         canvas.addEventListener('pointerdown', (event) => {
             if (event.button !== 0) return;
+            this.planeSpin.lastY = event.clientY;
             this.planeSpin.active = true;
             this.planeSpin.pointerId = event.pointerId;
             this.planeSpin.lastX = event.clientX;
@@ -59,11 +64,13 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
             if (!this.planeSpin.active || event.pointerId !== this.planeSpin.pointerId) return;
 
             const dx = event.clientX - this.planeSpin.lastX;
+            const dy = event.clientY - this.planeSpin.lastY;
             this.planeSpin.lastX = event.clientX;
-            if (Math.abs(dx) < 0.25) return;
+            this.planeSpin.lastY = event.clientY;
+            if (Math.abs(dx) + Math.abs(dy) < 0.25) return;
 
-            this.planeSpin.totalDx += Math.abs(dx);
-            this.rotateAroundPlaneNormal(-dx * 0.0065);
+            this.planeSpin.totalDx += Math.abs(dx) + Math.abs(dy);
+            this.orbitUpperHemisphere(-dx * 0.0065, dy * 0.0065);
             if (this.planeSpin.totalDx > 3) this.planeSpin.dragged = true;
             event.preventDefault();
         });
@@ -80,15 +87,26 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         canvas.addEventListener('pointercancel', finishSpin);
     }
 
-    rotateAroundPlaneNormal(angle) {
+    orbitUpperHemisphere(azimuthDelta, polarDelta) {
         if (!this.camera || !this.controls) return;
         const target = this.controls.target || new THREE.Vector3();
         const offset = this.camera.position.clone().sub(target);
-        offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
-        this.camera.up.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle).normalize();
+        const spherical = new THREE.Spherical().setFromVector3(offset);
+        spherical.theta += azimuthDelta;
+        spherical.phi = THREE.MathUtils.clamp(
+            spherical.phi + polarDelta,
+            this.minHemispherePolar,
+            this.maxHemispherePolar
+        );
+        offset.setFromSpherical(spherical);
         this.camera.position.copy(target).add(offset);
+        this.camera.up.copy(this.cameraUpForAzimuth(spherical.theta));
         this.camera.lookAt(target);
         this.controls.update();
+    }
+
+    cameraUpForAzimuth(theta) {
+        return new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), theta).normalize();
     }
 
     async onMouseClick(event) {
@@ -168,13 +186,51 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
     }
     addGlueLinks() {
         const sheet = 0;
-        for (let y = 0; y < this.boardHeight(); y++) {
+        const visibleY = this.visibleBoundaryIndices(this.boardHeight());
+        const visibleX = this.visibleBoundaryIndices(this.boardWidth());
+
+        for (const y of visibleY) {
             this.addBoundaryLink(sheet, 'left', y);
         }
 
-        for (let x = 0; x < this.boardWidth(); x++) {
+        for (const x of visibleX) {
             this.addBoundaryLink(sheet, 'top', x);
         }
+
+        this.aliasMissingBoundaryKeys('left', this.boardHeight(), visibleY);
+        this.aliasMissingBoundaryKeys('right', this.boardHeight(), visibleY.map((y) => this.boardHeight() - 1 - y));
+        this.aliasMissingBoundaryKeys('top', this.boardWidth(), visibleX);
+        this.aliasMissingBoundaryKeys('bottom', this.boardWidth(), visibleX.map((x) => this.boardWidth() - 1 - x));
+    }
+
+    visibleBoundaryIndices(count) {
+        if (count <= 2) return Array.from({ length: count }, (_, index) => index);
+        const indices = new Set([0, count - 1]);
+        const step = Math.max(2, Math.round((count - 1) / 4));
+        for (let index = 0; index < count; index += step) indices.add(index);
+        return [...indices].sort((a, b) => a - b);
+    }
+
+    aliasMissingBoundaryKeys(side, count, visibleIndices) {
+        const visible = [...new Set(visibleIndices)]
+            .filter((index) => index >= 0 && index < count)
+            .sort((a, b) => a - b);
+
+        for (let index = 0; index < count; index++) {
+            const key = this.game.boundaryCrossingKey(0, side, index);
+            if (this.boundaryLinks.has(key)) continue;
+
+            const nearest = this.nearestVisibleBoundaryIndex(index, visible);
+            const source = this.boundaryLinks.get(this.game.boundaryCrossingKey(0, side, nearest));
+            if (source) this.boundaryLinks.set(key, { ...source, key });
+        }
+    }
+
+    nearestVisibleBoundaryIndex(index, visibleIndices) {
+        return visibleIndices.reduce((nearest, candidate) =>
+            Math.abs(candidate - index) < Math.abs(nearest - index) ? candidate : nearest,
+            visibleIndices[0]
+        );
     }
 
     addBoundaryLink(fromSheet, side, index) {
@@ -184,34 +240,24 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         const reversedIndex = horizontal
             ? this.boardHeight() - 1 - index
             : this.boardWidth() - 1 - index;
-        const start = this.edgePoint(side, index, 0, 1.18);
-        const end = this.edgePoint(toSide, reversedIndex, toSheet, 1.18);
+        const start = this.edgePoint(side, index, 0, 1.42);
+        const end = this.edgePoint(toSide, reversedIndex, toSheet, 1.42);
         const maxIndex = horizontal ? this.boardHeight() - 1 : this.boardWidth() - 1;
-        const edgeBalance = maxIndex === 0 ? 0 : Math.abs(index - maxIndex / 2) / (maxIndex / 2);
-        const sideBias = index < (horizontal ? this.boardHeight() : this.boardWidth()) / 2 ? -1 : 1;
-        const cageLift = this.cageHeight + edgeBalance * 1.2;
-        const controlA = start.clone();
-        const controlB = end.clone();
-
+        const normalized = maxIndex === 0 ? 0 : (index / maxIndex) * 2 - 1;
+        const domeLift = this.cageHeight + (1 - Math.abs(normalized)) * 1.35;
+        const apex = start.clone().add(end).multiplyScalar(0.5);
+        apex.y = this.boardLift + 1.42 + domeLift;
         if (horizontal) {
-            const outsideZ = sideBias < 0
-                ? this.boardTop() - this.edgeGap - 1.35 - edgeBalance * 0.42
-                : this.boardBottom() + this.edgeGap + 1.35 + edgeBalance * 0.42;
-            controlA.set(this.boardLeft() - this.edgeGap - 0.85, start.y + cageLift, outsideZ);
-            controlB.set(this.boardRight() + this.edgeGap + 0.85, end.y + cageLift, outsideZ);
+            apex.z += normalized * this.boardSpanZ() * 0.18;
         } else {
-            const outsideX = sideBias < 0
-                ? this.boardLeft() - this.edgeGap - 1.35 - edgeBalance * 0.42
-                : this.boardRight() + this.edgeGap + 1.35 + edgeBalance * 0.42;
-            controlA.set(outsideX, start.y + cageLift, this.boardTop() - this.edgeGap - 0.85);
-            controlB.set(outsideX, end.y + cageLift, this.boardBottom() + this.edgeGap + 0.85);
+            apex.x += normalized * this.boardSpanX() * 0.18;
         }
 
-        const curve = new THREE.CubicBezierCurve3(start, controlA, controlB, end);
+        const curve = new THREE.QuadraticBezierCurve3(start, apex, end);
         const lineMaterial = new THREE.LineBasicMaterial({
             color: horizontal ? 0x67e8f9 : 0xfbbf24,
             transparent: true,
-            opacity: 0.18,
+            opacity: 0.08,
             depthWrite: false
         });
         const arrowMaterial = new THREE.MeshStandardMaterial({
@@ -220,7 +266,7 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
             emissiveIntensity: 0.34,
             roughness: 0.32,
             transparent: true,
-            opacity: 0.58
+            opacity: 0.42
         });
         const key = this.game.boundaryCrossingKey(fromSheet, side, index);
         const aliasKey = this.game.boundaryCrossingKey(toSheet, toSide, reversedIndex);
