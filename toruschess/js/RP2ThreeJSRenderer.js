@@ -28,7 +28,6 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         this.boardGroup.clear();
         this.boundaryLinks.clear();
 
-        this.addSheetBase(0);
 
         for (const { x, y, sheet } of this.game.validCells()) {
             const cell = new THREE.Mesh(
@@ -45,26 +44,6 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         this.addBoundaryRails();
         this.addGlueLinks();
         this.addWindingGuides();
-    }
-
-    addSheetBase(sheet) {
-        const width = this.boardSpanX();
-        const height = this.boardSpanZ();
-        const center = this.sheetOffset(sheet);
-        const base = new THREE.Mesh(
-            new THREE.BoxGeometry(width + 0.18, 0.055, height + 0.18),
-            new THREE.MeshStandardMaterial({
-                color: 0x31434c,
-                metalness: 0.08,
-                roughness: 0.48,
-                transparent: false,
-                opacity: 1
-            })
-        );
-        base.position.set(center.x, center.y - 0.045, center.z);
-        base.receiveShadow = true;
-        base.userData = { type: 'sheet-base', sheet };
-        this.boardGroup.add(base);
     }
 
     materialForCell(x, y, sheet = 0) {

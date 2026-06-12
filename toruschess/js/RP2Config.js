@@ -1,7 +1,7 @@
 export const RP2_BOARD_WIDTH = 12;
 export const RP2_BOARD_HEIGHT = 14;
 export const RP2_KING_ROW_TYPES = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
-export const RP2_WHITE_HOME_ROW = 2;
+export const RP2_WHITE_HOME_ROW = 3;
 export const RP2_HOME_ROWS = Object.freeze({
     white: RP2_WHITE_HOME_ROW,
     black: RP2_BOARD_HEIGHT - 1 - RP2_WHITE_HOME_ROW
