@@ -15,7 +15,7 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         this.edgeGap = 0.86;
         this.boardLift = 0.03;
         this.pieceLift = 0.18;
-        this.cageHeight = 8.2;
+        this.cageHeight = 9.4;
         this.boundaryLinks = new Map();
         this.planeSpin = {
             active: false,
@@ -204,11 +204,10 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
     }
 
     visibleBoundaryIndices(count) {
-        if (count <= 2) return Array.from({ length: count }, (_, index) => index);
-        const indices = new Set([0, count - 1]);
-        const step = Math.max(2, Math.round((count - 1) / 4));
-        for (let index = 0; index < count; index += step) indices.add(index);
-        return [...indices].sort((a, b) => a - b);
+        if (count <= 4) return Array.from({ length: count }, (_, index) => index);
+        const midLow = Math.floor((count - 1) / 2);
+        const midHigh = Math.ceil((count - 1) / 2);
+        return [...new Set([0, midLow, midHigh, count - 1])].sort((a, b) => a - b);
     }
 
     aliasMissingBoundaryKeys(side, count, visibleIndices) {
@@ -240,33 +239,24 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         const reversedIndex = horizontal
             ? this.boardHeight() - 1 - index
             : this.boardWidth() - 1 - index;
-        const start = this.edgePoint(side, index, 0, 1.42);
-        const end = this.edgePoint(toSide, reversedIndex, toSheet, 1.42);
-        const maxIndex = horizontal ? this.boardHeight() - 1 : this.boardWidth() - 1;
-        const normalized = maxIndex === 0 ? 0 : (index / maxIndex) * 2 - 1;
-        const domeLift = this.cageHeight + (1 - Math.abs(normalized)) * 1.35;
-        const apex = start.clone().add(end).multiplyScalar(0.5);
-        apex.y = this.boardLift + 1.42 + domeLift;
-        if (horizontal) {
-            apex.z += normalized * this.boardSpanZ() * 0.18;
-        } else {
-            apex.x += normalized * this.boardSpanX() * 0.18;
-        }
-
-        const curve = new THREE.QuadraticBezierCurve3(start, apex, end);
-        const lineMaterial = new THREE.LineBasicMaterial({
+        const start = this.edgePoint(side, index, 0, 1.68);
+        const end = this.edgePoint(toSide, reversedIndex, toSheet, 1.68);
+        const apex = new THREE.Vector3(0, this.boardLift + 1.68 + this.cageHeight, 0);
+        const curve = new THREE.CatmullRomCurve3([start, apex, end], false, 'centripetal', 0.42);
+        const lineMaterial = new THREE.MeshBasicMaterial({
             color: horizontal ? 0x67e8f9 : 0xfbbf24,
             transparent: true,
-            opacity: 0.08,
-            depthWrite: false
+            opacity: 0.32,
+            depthWrite: false,
+            depthTest: true
         });
         const arrowMaterial = new THREE.MeshStandardMaterial({
             color: horizontal ? 0x67e8f9 : 0xfbbf24,
             emissive: horizontal ? 0x0891b2 : 0xf59e0b,
-            emissiveIntensity: 0.34,
-            roughness: 0.32,
+            emissiveIntensity: 0.56,
+            roughness: 0.28,
             transparent: true,
-            opacity: 0.42
+            opacity: 0.74
         });
         const key = this.game.boundaryCrossingKey(fromSheet, side, index);
         const aliasKey = this.game.boundaryCrossingKey(toSheet, toSide, reversedIndex);
@@ -282,31 +272,31 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
             arrowColor: arrowMaterial.color.clone(),
             arrowEmissive: arrowMaterial.emissive.clone(),
             arrowEmissiveIntensity: arrowMaterial.emissiveIntensity,
-            glowPosition: curve.getPoint(0.54)
+            glowPosition: apex.clone()
         };
 
         this.boundaryLinks.set(key, sharedLink);
         this.boundaryLinks.set(aliasKey, {
             ...sharedLink,
             key: aliasKey,
-            glowPosition: curve.getPoint(0.46)
+            glowPosition: apex.clone()
         });
         this.boardGroup.add(line);
         this.boardGroup.add(arrow);
     }
 
     createLinkCurve(curve, material, key = '') {
-        const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(34));
-        const line = new THREE.Line(geometry, material);
+        const geometry = new THREE.TubeGeometry(curve, 56, 0.018, 8, false);
+        const line = new THREE.Mesh(geometry, material);
         line.userData = { type: 'glue-link', key };
         line.renderOrder = 12;
         return line;
     }
 
     createArrowAt(position, direction, material, key = '') {
-        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.16, 16), material);
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.24, 20), material);
         const tangent = direction.clone().normalize();
-        cone.position.copy(position).add(tangent.clone().multiplyScalar(-0.08));
+        cone.position.copy(position).add(tangent.clone().multiplyScalar(-0.12));
         cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
         cone.userData = { type: 'glue-arrow', key };
         return cone;

@@ -14,11 +14,15 @@ import {
     rp2SideSupportFiles
 } from './RP2Config.js';
 
-const PIECE_ICONS = {
-    white: { K: 'K', Q: 'Q', R: 'R', B: 'B', N: 'N', P: 'P' },
-    black: { K: 'k', Q: 'q', R: 'r', B: 'b', N: 'n', P: 'p' }
+const CAPTURED_ICONS = {
+    white: { K: '\u2654', Q: '\u2655', R: '\u2656', B: '\u2657', N: '\u2658', P: '\u2659' },
+    black: { K: '\u265A', Q: '\u265B', R: '\u265C', B: '\u265D', N: '\u265E', P: '\u265F' }
 };
 const PICKER_ICONS = { K: 'K', Q: 'Q', R: 'R', B: 'B', N: 'N', P: 'P' };
+const CAPTURED_ICON_LOOKUP = Object.entries(CAPTURED_ICONS).reduce((lookup, [color, pieces]) => {
+    for (const [type, glyph] of Object.entries(pieces)) lookup[glyph] = { color, type };
+    return lookup;
+}, {});
 
 export class RP2ChessGame {
     constructor() {
@@ -323,7 +327,7 @@ export class RP2ChessGame {
         }
 
         if (captured) {
-            this.capturedPieces[piece.color].push(this.pieceIcon(captured));
+            this.capturedPieces[piece.color].push(this.normalizeCapturedPiece(captured));
         }
 
         this.enPassantTarget = legalMove.pawnDoubleJump
@@ -1325,15 +1329,39 @@ export class RP2ChessGame {
     }
 
     renderCapturedPieces(pieces) {
-        return pieces?.length
-            ? pieces.map((piece) => this.capturedPieceMarkup(piece)).join('')
+        const groups = this.groupCapturedPieces(pieces);
+        return groups.length
+            ? groups.map((group) => this.capturedPieceGroupMarkup(group)).join('')
             : this.emptyInline('captured.none');
     }
 
-    capturedPieceMarkup(value) {
-        const piece = this.normalizeCapturedPiece(value);
+    groupCapturedPieces(pieces = []) {
+        const groups = [];
+        const byType = new Map();
+
+        for (const value of pieces || []) {
+            const piece = this.normalizeCapturedPiece(value);
+            const key = `${piece.color}:${piece.type}`;
+            let group = byType.get(key);
+            if (!group) {
+                group = { piece, count: 0 };
+                byType.set(key, group);
+                groups.push(group);
+            }
+            group.count += 1;
+        }
+
+        return groups;
+    }
+
+    capturedPieceGroupMarkup({ piece, count }) {
         const title = `${this.tr(`colors.${piece.color}`)} ${this.pieceName(piece)}`;
-        return `<span class="captured-icon piece-icon ${piece.color} ${piece.type}" title="${title}" aria-label="${title}">${this.pickerIcon(piece)}</span>`;
+        const icons = Array.from({ length: count }, (_, index) => this.capturedPieceMarkup(piece, index)).join('');
+        return `<span class="captured-stack" title="${title} x${count}" aria-label="${title} x${count}">${icons}</span>`;
+    }
+
+    capturedPieceMarkup(piece, index = 0) {
+        return `<span class="captured-icon piece-icon ${piece.color} ${piece.type}" style="--stack-index:${index}">${this.capturedIcon(piece)}</span>`;
     }
 
     normalizeCapturedPiece(value) {
@@ -1345,6 +1373,8 @@ export class RP2ChessGame {
 
         const text = String(value || 'P').trim();
         const glyph = text[0] || 'P';
+        if (CAPTURED_ICON_LOOKUP[glyph]) return { ...CAPTURED_ICON_LOOKUP[glyph] };
+
         const type = ['K', 'Q', 'R', 'B', 'N', 'P'].includes(glyph.toUpperCase()) ? glyph.toUpperCase() : 'P';
         const color = glyph === glyph.toLowerCase() ? 'black' : 'white';
         return { color, type };
@@ -1369,7 +1399,7 @@ export class RP2ChessGame {
     }
 
     formatCoord({ x, y, sheet = 0 }) {
-        return `(${sheet}:${x},${y})`;
+        return `(${x},${y})`;
     }
 
     opponentOf(color) {
@@ -1380,8 +1410,8 @@ export class RP2ChessGame {
         return this.tr(`pieces.${piece?.type || 'piece'}`);
     }
 
-    pieceIcon(piece) {
-        return PIECE_ICONS[piece.color]?.[piece.type] || piece.display || '?';
+    capturedIcon(piece) {
+        return CAPTURED_ICONS[piece.color]?.[piece.type] || this.pickerIcon(piece);
     }
 
     pickerIcon(piece) {
