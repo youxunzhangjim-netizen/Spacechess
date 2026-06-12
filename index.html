@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Chess</title>
+    <title>Topological Board Game</title>
     <link rel="stylesheet" href="./css/launcher.css">
 </head>
 <body>
@@ -11,32 +11,156 @@
         <section class="launcher-hero" aria-labelledby="launcherTitle">
             <div class="brand-block">
                 <p class="eyebrow">Gameprojects</p>
-                <h1 id="launcherTitle">Space Chess</h1>
+                <h1 id="launcherTitle">Topological Board Game</h1>
             </div>
 
-            <div class="mode-grid" aria-label="Choose chess space">
-                <a class="mode-card mode-2d" href="./2dchess/">
-                    <span class="mode-visual board-plane" aria-hidden="true">
+            <div class="dimension-grid" aria-label="Choose board dimension">
+                <section class="dimension-card dimension-2d" aria-labelledby="dimension2dTitle">
+                    <span class="popularity-badge" data-popularity-key="dimension-2d">-- waiting</span>
+                    <span class="dimension-visual board-plane" aria-hidden="true">
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                     </span>
-                    <span class="mode-copy">
-                        <strong>2D Space Chess</strong>
-                        <small>Boundary chess board</small>
+                    <span class="dimension-copy">
+                        <strong id="dimension2dTitle">2D</strong>
+                        <small>Planar boundary boards</small>
                     </span>
-                </a>
+                    <a class="game-option" href="./2dchess/">
+                        <span class="game-option-copy">
+                            <strong>2D Chess</strong>
+                            <small>Boundary-condition chess</small>
+                        </span>
+                        <span class="game-count-badge" data-popularity-key="game-2dchess">-- waiting</span>
+                    </a>
+                </section>
 
-                <a class="mode-card mode-3d" href="./toruschess/">
-                    <span class="mode-visual image-plane" aria-hidden="true"></span>
-                    <span class="mode-copy">
-                        <strong>3D Space Chess</strong>
+                <section class="dimension-card dimension-3d" aria-labelledby="dimension3dTitle">
+                    <span class="popularity-badge" data-popularity-key="dimension-3d">-- waiting</span>
+                    <span class="dimension-visual image-plane" aria-hidden="true"></span>
+                    <span class="dimension-copy">
+                        <strong id="dimension3dTitle">3D</strong>
                         <small>R3, T2, RP2, Mobius</small>
                     </span>
-                </a>
+                    <a class="game-option" href="./toruschess/">
+                        <span class="game-option-copy">
+                            <strong>3D Chess</strong>
+                            <small>R3 and embedded 2D spaces</small>
+                        </span>
+                        <span class="game-count-badge" data-popularity-key="game-3dchess">-- waiting</span>
+                    </a>
+                </section>
+
+                <section class="dimension-card dimension-4d" aria-labelledby="dimension4dTitle">
+                    <span class="popularity-badge" data-popularity-key="dimension-4d">0 waiting</span>
+                    <span class="dimension-visual hyper-plane" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                    </span>
+                    <span class="dimension-copy">
+                        <strong id="dimension4dTitle">4D</strong>
+                        <small>Higher-dimensional boards</small>
+                    </span>
+                    <span class="game-option is-disabled" aria-disabled="true">
+                        <span class="game-option-copy">
+                            <strong>4D Chess</strong>
+                            <small>Not available yet</small>
+                        </span>
+                        <span class="game-count-badge" data-popularity-key="game-4dchess">0 waiting</span>
+                    </span>
+                </section>
             </div>
         </section>
     </main>
+
+    <script>
+        (() => {
+            const PEER_LIST_URL = 'https://0.peerjs.com/peerjs/peers';
+            const PEER_VERSION = '1.5.5';
+            const MATCHMAKING_BUCKET_MS = 60000;
+            const MATCH_ROOM_PATTERN = /^tc-([a-z0-9]+)-[a-z0-9]+-t\d+-m-(\d+)-\d+$/i;
+            const GAME_BY_VARIANT = {
+                '2dchess': '2dchess',
+                cube: '3dchess',
+                torus: '3dchess',
+                rp2: '3dchess',
+                mobius: '3dchess'
+            };
+            const DIMENSION_BY_GAME = {
+                '2dchess': '2d',
+                '3dchess': '3d',
+                '4dchess': '4d'
+            };
+            const EMPTY_COUNTS = {
+                'dimension-2d': 0,
+                'dimension-3d': 0,
+                'dimension-4d': 0,
+                'game-2dchess': 0,
+                'game-3dchess': 0,
+                'game-4dchess': 0
+            };
+
+            function setBadgeState(state, counts = EMPTY_COUNTS) {
+                document.querySelectorAll('[data-popularity-key]').forEach((badge) => {
+                    const key = badge.dataset.popularityKey;
+                    const count = counts[key] || 0;
+                    const disabledZero = key === 'dimension-4d' || key === 'game-4dchess';
+                    const text = state === 'available' || disabledZero ? String(count) : '--';
+                    badge.textContent = `${text} waiting`;
+                    badge.dataset.state = state;
+                    badge.title = state === 'available'
+                        ? `${count} online matchmaking ${count === 1 ? 'waiter' : 'waiters'}`
+                        : 'Live matchmaking count unavailable';
+                });
+            }
+
+            function summarize(peerIds) {
+                const counts = { ...EMPTY_COUNTS };
+                const seenRooms = new Set();
+                const bucket = Math.floor(Date.now() / MATCHMAKING_BUCKET_MS);
+                const activeBuckets = new Set([bucket - 1, bucket, bucket + 1]);
+
+                for (const id of peerIds) {
+                    const roomId = String(id || '').toLowerCase();
+                    const match = roomId.match(MATCH_ROOM_PATTERN);
+                    if (!match || seenRooms.has(roomId)) continue;
+                    if (!activeBuckets.has(Number(match[2]))) continue;
+                    seenRooms.add(roomId);
+
+                    const game = GAME_BY_VARIANT[match[1]];
+                    const dimension = DIMENSION_BY_GAME[game];
+                    if (!game || !dimension) continue;
+
+                    counts[`game-${game}`] += 1;
+                    counts[`dimension-${dimension}`] += 1;
+                }
+
+                return counts;
+            }
+
+            async function fetchPeerIds() {
+                const url = new URL(PEER_LIST_URL);
+                url.searchParams.set('ts', `${Date.now()}${Math.random()}`);
+                url.searchParams.set('version', PEER_VERSION);
+                const response = await fetch(url.href, { cache: 'no-store', referrerPolicy: 'strict-origin-when-cross-origin' });
+                if (!response.ok) throw new Error(`Peer discovery returned ${response.status}`);
+                const data = await response.json();
+                return Array.isArray(data) ? data : [];
+            }
+
+            async function refreshPopularity() {
+                try {
+                    const peers = await fetchPeerIds();
+                    setBadgeState('available', summarize(peers));
+                } catch {
+                    setBadgeState('unavailable');
+                }
+            }
+
+            setBadgeState('loading');
+            refreshPopularity();
+            window.setInterval(refreshPopularity, 60000);
+        })();
+    </script>
 </body>
 </html>

@@ -16,7 +16,7 @@ const VARIANTS = {
     },
     cube: {
         label: 'R3',
-        title: 'R3 8x8x8 3D Chess',
+        title: 'R3 3D Chess',
         tagline: 'Local and online cubic chess with full 3D movement.',
         canvasLabel: '3D chess board',
         rulesTitle: '3D Movement',
