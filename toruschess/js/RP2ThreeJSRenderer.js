@@ -12,10 +12,10 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         super(game);
         this.cellSize = 0.72;
         this.cellGap = 0.035;
-        this.edgeGap = 0.58;
+        this.edgeGap = 0.86;
         this.boardLift = 0.03;
         this.pieceLift = 0.18;
-        this.cageHeight = 2.2;
+        this.cageHeight = 4.9;
         this.boundaryLinks = new Map();
         this.planeSpin = {
             active: false,
@@ -85,8 +85,8 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         const target = this.controls.target || new THREE.Vector3();
         const offset = this.camera.position.clone().sub(target);
         offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+        this.camera.up.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle).normalize();
         this.camera.position.copy(target).add(offset);
-        this.camera.up.set(0, 1, 0);
         this.camera.lookAt(target);
         this.controls.update();
     }
@@ -170,12 +170,10 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         const sheet = 0;
         for (let y = 0; y < this.boardHeight(); y++) {
             this.addBoundaryLink(sheet, 'left', y);
-            this.addBoundaryLink(sheet, 'right', y);
         }
 
         for (let x = 0; x < this.boardWidth(); x++) {
             this.addBoundaryLink(sheet, 'top', x);
-            this.addBoundaryLink(sheet, 'bottom', x);
         }
     }
 
@@ -186,32 +184,50 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
         const reversedIndex = horizontal
             ? this.boardHeight() - 1 - index
             : this.boardWidth() - 1 - index;
-        const start = this.edgePoint(side, index, 0, 0.34);
-        const end = this.edgePoint(toSide, reversedIndex, toSheet, 0.36);
-        const midpoint = start.clone().add(end).multiplyScalar(0.5);
+        const start = this.edgePoint(side, index, 0, 1.18);
+        const end = this.edgePoint(toSide, reversedIndex, toSheet, 1.18);
         const maxIndex = horizontal ? this.boardHeight() - 1 : this.boardWidth() - 1;
         const edgeBalance = maxIndex === 0 ? 0 : Math.abs(index - maxIndex / 2) / (maxIndex / 2);
-        const control = midpoint.clone();
-        control.y += this.cageHeight + edgeBalance * 0.55;
-        control.z += horizontal ? 0 : (side === 'top' ? -0.35 : 0.35);
-        control.x += horizontal ? (side === 'left' ? -0.35 : 0.35) : 0;
+        const sideBias = index < (horizontal ? this.boardHeight() : this.boardWidth()) / 2 ? -1 : 1;
+        const cageLift = this.cageHeight + edgeBalance * 1.2;
+        const controlA = start.clone();
+        const controlB = end.clone();
+
+        if (horizontal) {
+            const outsideZ = sideBias < 0
+                ? this.boardTop() - this.edgeGap - 1.35 - edgeBalance * 0.42
+                : this.boardBottom() + this.edgeGap + 1.35 + edgeBalance * 0.42;
+            controlA.set(this.boardLeft() - this.edgeGap - 0.85, start.y + cageLift, outsideZ);
+            controlB.set(this.boardRight() + this.edgeGap + 0.85, end.y + cageLift, outsideZ);
+        } else {
+            const outsideX = sideBias < 0
+                ? this.boardLeft() - this.edgeGap - 1.35 - edgeBalance * 0.42
+                : this.boardRight() + this.edgeGap + 1.35 + edgeBalance * 0.42;
+            controlA.set(outsideX, start.y + cageLift, this.boardTop() - this.edgeGap - 0.85);
+            controlB.set(outsideX, end.y + cageLift, this.boardBottom() + this.edgeGap + 0.85);
+        }
+
+        const curve = new THREE.CubicBezierCurve3(start, controlA, controlB, end);
         const lineMaterial = new THREE.LineBasicMaterial({
             color: horizontal ? 0x67e8f9 : 0xfbbf24,
             transparent: true,
-            opacity: 0.7,
+            opacity: 0.18,
             depthWrite: false
         });
         const arrowMaterial = new THREE.MeshStandardMaterial({
             color: horizontal ? 0x67e8f9 : 0xfbbf24,
             emissive: horizontal ? 0x0891b2 : 0xf59e0b,
             emissiveIntensity: 0.34,
-            roughness: 0.32
+            roughness: 0.32,
+            transparent: true,
+            opacity: 0.58
         });
         const key = this.game.boundaryCrossingKey(fromSheet, side, index);
-        const line = this.createLinkCurve(start, control, end, lineMaterial, key);
-        const arrow = this.createArrowAt(end, end.clone().sub(control), arrowMaterial, key);
+        const aliasKey = this.game.boundaryCrossingKey(toSheet, toSide, reversedIndex);
+        const line = this.createLinkCurve(curve, lineMaterial, key);
+        const arrow = this.createArrowAt(curve.getPoint(0.5), curve.getTangent(0.5), arrowMaterial, key);
 
-        this.boundaryLinks.set(key, {
+        const sharedLink = {
             key,
             line,
             arrow,
@@ -220,17 +236,24 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
             arrowColor: arrowMaterial.color.clone(),
             arrowEmissive: arrowMaterial.emissive.clone(),
             arrowEmissiveIntensity: arrowMaterial.emissiveIntensity,
-            glowPosition: end.clone().add(control.clone().sub(end).normalize().multiplyScalar(0.18))
+            glowPosition: curve.getPoint(0.54)
+        };
+
+        this.boundaryLinks.set(key, sharedLink);
+        this.boundaryLinks.set(aliasKey, {
+            ...sharedLink,
+            key: aliasKey,
+            glowPosition: curve.getPoint(0.46)
         });
         this.boardGroup.add(line);
         this.boardGroup.add(arrow);
     }
-    createLinkCurve(start, control, end, material, key = '') {
-        const curve = new THREE.QuadraticBezierCurve3(start, control, end);
-        const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(28));
+
+    createLinkCurve(curve, material, key = '') {
+        const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(34));
         const line = new THREE.Line(geometry, material);
         line.userData = { type: 'glue-link', key };
-        line.renderOrder = 18;
+        line.renderOrder = 12;
         return line;
     }
 
@@ -516,15 +539,18 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
 
     resetCamera() {
         this.camera.position.copy(this.homeCameraPosition());
+        this.camera.up.copy(this.homeCameraUp());
         this.controls.target.set(0, 0, 0);
+        this.camera.lookAt(this.controls.target);
         this.controls.update();
     }
 
     homeCameraPosition() {
-        const base = this.game.currentPlayer === 'black'
-            ? new THREE.Vector3(-6.8, 8.4, -8.8)
-            : new THREE.Vector3(6.8, 8.4, 8.8);
-        base.setLength(this.camera?.aspect < 0.72 ? 17.2 : 14.8);
-        return base;
+        const distance = this.camera?.aspect < 0.72 ? 18.4 : 15.8;
+        return new THREE.Vector3(0, distance, 1.85);
+    }
+
+    homeCameraUp() {
+        return new THREE.Vector3(0, 0, -1);
     }
 }
