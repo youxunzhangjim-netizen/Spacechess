@@ -303,13 +303,6 @@ export class RP2ThreeJSRenderer extends TorusThreeJSRenderer {
     addBoardLabels() {
         this.labelGroup.clear();
 
-        const centerX = Math.floor(this.boardWidth() / 2);
-        const centerY = Math.floor(this.boardHeight() / 2);
-        const boundary = this.createTextSprite('RP2', 0x86efac, 54);
-        boundary.position.copy(this.getCellPose(centerX, centerY, 0.54, 0).position);
-        boundary.scale.set(0.34, 0.34, 0.34);
-        this.labelGroup.add(boundary);
-
         for (let x = 0; x < this.boardWidth(); x++) {
             const xLabel = this.createTextSprite(String(x), 0xc9d7df, 52);
             xLabel.position.copy(this.bottomEdgePoint(x, 0.36, 0));
