@@ -20,15 +20,105 @@
 body {
     min-height: 100vh;
     margin: 0;
+    position: relative;
     color: var(--text);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow-x: hidden;
     background:
-        linear-gradient(rgba(15, 18, 23, 0.78), rgba(15, 18, 23, 0.94)),
-        url("../3D/3dchess/verification/t2-long-torus-desktop.png") center / cover fixed,
-        var(--bg);
+        linear-gradient(rgba(15, 18, 23, 0.8), rgba(15, 18, 23, 0.94)),
+        radial-gradient(circle at center, rgba(56, 189, 248, 0.16), transparent 42%),
+        linear-gradient(135deg, #0f1217, #151b22 56%, #0d1015);
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(90deg, rgba(215, 232, 223, 0.04) 1px, transparent 1px) 0 0 / 44px 44px,
+        linear-gradient(rgba(215, 232, 223, 0.035) 1px, transparent 1px) 0 0 / 44px 44px;
+    mask-image: radial-gradient(circle at center, #000 0 54%, transparent 78%);
+}
+
+.launcher-background-torus {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.torus-stage {
+    position: relative;
+    width: min(74vmin, 720px);
+    aspect-ratio: 1;
+    transform-style: preserve-3d;
+    animation: torusSlowSpin 38s linear infinite;
+    filter: drop-shadow(0 34px 58px rgba(0, 0, 0, 0.48));
+    opacity: 0.62;
+}
+
+.torus-stage::before,
+.torus-stage::after {
+    content: "";
+    position: absolute;
+    inset: 9%;
+    border-radius: 50%;
+    transform: rotateX(63deg);
+}
+
+.torus-stage::before {
+    background:
+        repeating-conic-gradient(from 9deg, rgba(215, 232, 223, 0.96) 0 7.5deg, rgba(49, 67, 76, 0.96) 7.5deg 15deg),
+        radial-gradient(circle at 42% 34%, rgba(255, 255, 255, 0.72), transparent 22%);
+    mask-image: radial-gradient(circle, transparent 0 35%, #000 36% 64%, transparent 65%);
+    box-shadow:
+        inset 0 0 36px rgba(255, 255, 255, 0.18),
+        inset 0 -24px 42px rgba(0, 0, 0, 0.34),
+        0 0 70px rgba(56, 189, 248, 0.22);
+}
+
+.torus-stage::after {
+    inset: 14%;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: inset 0 0 32px rgba(56, 189, 248, 0.24);
+    mask-image: radial-gradient(circle, transparent 0 33%, #000 34% 62%, transparent 63%);
+}
+
+.torus-piece {
+    position: absolute;
+    width: 4.2%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.44), inset 0 4px 8px rgba(255, 255, 255, 0.35);
+}
+
+.torus-piece.white { background: radial-gradient(circle at 32% 22%, #ffffff, #d7e8df 48%, #8aa0a7); }
+.torus-piece.black { background: radial-gradient(circle at 32% 22%, #7b8794, #17202a 50%, #030506); }
+.torus-piece.gold { background: radial-gradient(circle at 32% 22%, #fff7cd, #f5b647 48%, #7c4a05); }
+.torus-piece.tp1 { left: 49%; top: 18%; }
+.torus-piece.tp2 { left: 61%; top: 20%; }
+.torus-piece.tp3 { left: 70%; top: 29%; }
+.torus-piece.tp4 { left: 77%; top: 42%; }
+.torus-piece.tp5 { left: 51%; top: 82%; }
+.torus-piece.tp6 { left: 39%; top: 80%; }
+.torus-piece.tp7 { left: 30%; top: 71%; }
+.torus-piece.tp8 { left: 23%; top: 58%; }
+.torus-piece.tp9 { left: 82%; top: 52%; width: 3.4%; }
+.torus-piece.tp10 { left: 18%; top: 48%; width: 3.4%; }
+
+@keyframes torusSlowSpin {
+    from { transform: perspective(980px) rotateX(7deg) rotateZ(0deg); }
+    to { transform: perspective(980px) rotateX(7deg) rotateZ(360deg); }
 }
 
 .launcher-shell {
+    position: relative;
+    z-index: 1;
     min-height: 100vh;
     display: grid;
     align-items: center;
@@ -149,11 +239,62 @@ h1 {
     background: var(--light);
 }
 
-.image-plane {
+.chess-cube-preview {
+    position: relative;
+    display: grid;
+    place-items: center;
     background:
-        linear-gradient(rgba(10, 12, 15, 0.08), rgba(10, 12, 15, 0.22)),
-        url("../3D/3dchess/verification/cube-combined.png") center / cover;
+        radial-gradient(circle at 50% 42%, rgba(56, 189, 248, 0.26), transparent 36%),
+        linear-gradient(140deg, rgba(12, 17, 24, 0.98), rgba(22, 31, 39, 0.92));
+    perspective: 820px;
     box-shadow: inset 0 0 0 1px rgba(215, 232, 223, 0.14);
+}
+
+.cube-preview-board {
+    position: relative;
+    width: min(72%, 210px);
+    aspect-ratio: 1;
+    transform-style: preserve-3d;
+    transform: rotateX(62deg) rotateZ(-34deg);
+    animation: cubePreviewBreathe 9s ease-in-out infinite alternate;
+}
+
+.cube-preview-layer {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(215, 232, 223, 0.34);
+    border-radius: 3px;
+    background:
+        linear-gradient(rgba(255,255,255,0.04), rgba(0,0,0,0.14)),
+        repeating-conic-gradient(rgba(215, 232, 223, 0.92) 0 25%, rgba(49, 67, 76, 0.96) 0 50%) 0 0 / 25% 25%;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+}
+
+.cube-preview-layer.layer-1 { transform: translateZ(0); opacity: 0.98; }
+.cube-preview-layer.layer-2 { transform: translateZ(34px); opacity: 0.82; }
+.cube-preview-layer.layer-3 { transform: translateZ(68px); opacity: 0.66; }
+
+.cube-preview-piece {
+    position: absolute;
+    width: 11%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) translateZ(var(--z, 0));
+    box-shadow: 0 7px 13px rgba(0, 0, 0, 0.42), inset 0 3px 7px rgba(255, 255, 255, 0.32);
+}
+
+.cube-preview-piece.white { background: radial-gradient(circle at 34% 24%, #fff, #d7e8df 52%, #91a3aa); }
+.cube-preview-piece.black { background: radial-gradient(circle at 34% 24%, #7d8791, #111820 55%, #020304); }
+.cube-preview-piece.cp1 { left: 19%; top: 19%; --z: 74px; }
+.cube-preview-piece.cp2 { left: 38%; top: 20%; --z: 74px; }
+.cube-preview-piece.cp3 { left: 20%; top: 39%; --z: 40px; }
+.cube-preview-piece.cp4 { left: 80%; top: 80%; --z: 6px; }
+.cube-preview-piece.cp5 { left: 61%; top: 79%; --z: 6px; }
+.cube-preview-piece.cp6 { left: 80%; top: 61%; --z: 40px; }
+
+@keyframes cubePreviewBreathe {
+    from { transform: rotateX(62deg) rotateZ(-38deg) translateY(4px); }
+    to { transform: rotateX(62deg) rotateZ(-24deg) translateY(-4px); }
 }
 
 .hyper-plane {

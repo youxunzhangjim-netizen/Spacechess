@@ -6,6 +6,78 @@ import { GoNetworkManager } from './NetworkManager.js';
 const PUBLIC_GAME_URL = 'https://youxunzhangjim-netizen.github.io/Spacechess/3D/3dgo/';
 const STORAGE_PREFIX = '3dgo:room:';
 const KOMI = 7.5;
+const LANGUAGE_STORAGE_KEY = '3dgo:language';
+
+const I18N = {
+    en: {
+        language: { label: 'Language', english: 'English', chinese: 'Chinese' },
+        app: { title: '3D Go', tagline: 'R3 lattice Go and T2 torus Go with 9, 13, and 19 scale options.' },
+        colors: { black: 'Black', white: 'White' },
+        captured: { byBlack: 'Captured by Black', byWhite: 'Captured by White', stones: ({ count }) => count + ' ' + (count === 1 ? 'stone' : 'stones') },
+        controls: { title: 'Game Controls', gameMode: 'Game Mode', local: 'Local Pass and Play', online: 'Online Multiplayer', goSpace: 'Go Space', boardScale: 'Board Scale', timer: 'Timer per Player', resetCamera: 'Reset Camera', pass: 'Pass', agreeCount: 'Agree Count', newGame: 'New Game', surrender: 'Surrender' },
+        online: { localStatus: 'Local pass and play', findMatch: 'Find Match', privateRoom: 'PRIVATE ROOM', createRoom: 'Create Room', or: 'OR', roomInput: '5-digit room code or shared link', joinRoom: 'Join Room', roomCode: 'Room Code', copy: 'Copy', copied: 'Copied', onlineAs: ({ color }) => 'Online as ' + color },
+        mode: { r3Option: 'R3 Go', t2Option: 'T2 Torus Go', r3Display: ({ size }) => size + '^3 R3 Go', t2Display: ({ size }) => size + ' x ' + size + ' T2 Go', r3Info: 'R3 uses open boundaries in x, y, and z.', t2Info: 'T2 wraps both directions on the torus board.' },
+        timer: { none: 'No Timer', five: '5 Minutes', ten: '10 Minutes', fifteen: '15 Minutes', thirty: '30 Minutes', hour: '1 Hour' },
+        history: { title: 'Move History', started: 'Game started.' },
+        rules: { title: 'Rules', text: 'Area scoring with 7.5 komi. R3 groups use six face-adjacent liberties. T2 groups use four torus-adjacent liberties with both directions periodic.' },
+        status: { start: 'Select a glowing node for Black.', waitingForColor: ({ color }) => 'Waiting for ' + color + '.', toPlay: ({ color }) => color + ' to play', countingPending: 'Counting pending', twoPasses: 'Two passes. Both players must agree to count.', agreed: ({ color, other }) => color + ' agreed. Waiting for ' + other + '.', surrendered: ({ color, winner }) => color + ' surrendered. ' + winner + ' wins.', timedOut: ({ color, winner }) => color + ' ran out of time. ' + winner + ' wins.', synced: 'Synced online game.', finalCount: 'Final count:' },
+        score: { draw: 'Draw', wins: ({ color }) => color + ' wins', winsBy: ({ color, margin }) => color + ' wins by ' + margin, summary: ({ black, white, komi, result }) => 'Black ' + black + ', White ' + white + ' including ' + komi + ' komi. ' + result }
+    },
+    zh: {
+        language: { label: '语言', english: 'English', chinese: '中文' },
+        app: { title: '3D 围棋', tagline: 'R3 格点围棋与 T2 环面围棋，支持 9、13、19 尺寸。' },
+        colors: { black: '黑方', white: '白方' },
+        captured: { byBlack: '黑方提子', byWhite: '白方提子', stones: ({ count }) => count + ' 子' },
+        controls: { title: '游戏控制', gameMode: '游戏模式', local: '本地轮流', online: '在线多人', goSpace: '围棋空间', boardScale: '棋盘尺度', timer: '每方时间', resetCamera: '重置视角', pass: '停一手', agreeCount: '同意数目', newGame: '新游戏', surrender: '认输' },
+        online: { localStatus: '本地轮流', findMatch: '寻找匹配', privateRoom: '私人房间', createRoom: '创建房间', or: '或', roomInput: '5 位房间码或分享链接', joinRoom: '加入房间', roomCode: '房间码', copy: '复制', copied: '已复制', onlineAs: ({ color }) => '在线身份：' + color },
+        mode: { r3Option: 'R3 围棋', t2Option: 'T2 环面围棋', r3Display: ({ size }) => size + '^3 R3 围棋', t2Display: ({ size }) => size + ' x ' + size + ' T2 围棋', r3Info: 'R3 在 x、y、z 三个方向使用开放边界。', t2Info: 'T2 在环面棋盘的两个方向都周期连接。' },
+        timer: { none: '无计时', five: '5 分钟', ten: '10 分钟', fifteen: '15 分钟', thirty: '30 分钟', hour: '1 小时' },
+        history: { title: '走法记录', started: '游戏开始。' },
+        rules: { title: '规则', text: '面积计分，贴目 7.5。R3 棋串使用六个面相邻气；T2 棋串使用环面上四个周期相邻气。' },
+        status: { start: '请选择一个发光节点让黑方落子。', waitingForColor: ({ color }) => '等待' + color + '。', toPlay: ({ color }) => color + '落子', countingPending: '等待数目确认', twoPasses: '双方连续停一手。两位玩家都需要同意数目。', agreed: ({ color, other }) => color + '已同意，等待' + other + '。', surrendered: ({ color, winner }) => color + '认输，' + winner + '获胜。', timedOut: ({ color, winner }) => color + '超时，' + winner + '获胜。', synced: '已同步在线棋局。', finalCount: '终局数目：' },
+        score: { draw: '平局', wins: ({ color }) => color + '获胜', winsBy: ({ color, margin }) => color + '胜 ' + margin, summary: ({ black, white, komi, result }) => '黑方 ' + black + '，白方 ' + white + '，含贴目 ' + komi + '。' + result }
+    }
+};
+
+let currentLanguage = (() => {
+    try {
+        const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+        return Object.prototype.hasOwnProperty.call(I18N, stored) ? stored : 'en';
+    } catch {
+        return 'en';
+    }
+})();
+
+function readTranslation(lang, key) {
+    return key.split('.').reduce((node, part) => node?.[part], I18N[lang]);
+}
+
+function tr(key, params = {}) {
+    const value = readTranslation(currentLanguage, key) ?? readTranslation('en', key) ?? key;
+    return typeof value === 'function' ? value(params) : String(value);
+}
+
+function applyLanguage(root = document) {
+    document.documentElement.lang = currentLanguage;
+    document.title = tr('app.title');
+    root.querySelectorAll('[data-i18n]').forEach((element) => { element.textContent = tr(element.dataset.i18n); });
+    root.querySelectorAll('[data-i18n-placeholder]').forEach((element) => { element.setAttribute('placeholder', tr(element.dataset.i18nPlaceholder)); });
+    root.querySelectorAll('[data-i18n-aria-label]').forEach((element) => { element.setAttribute('aria-label', tr(element.dataset.i18nAriaLabel)); });
+    root.querySelectorAll('[data-i18n-title]').forEach((element) => { element.setAttribute('title', tr(element.dataset.i18nTitle)); });
+    root.querySelectorAll('[data-lang-option]').forEach((button) => {
+        const active = button.dataset.langOption === currentLanguage;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+    });
+}
+
+function setLanguage(language) {
+    if (!Object.prototype.hasOwnProperty.call(I18N, language) || language === currentLanguage) return;
+    currentLanguage = language;
+    try { window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language); } catch {}
+    applyLanguage();
+    window.dispatchEvent(new CustomEvent('languagechange', { detail: { language } }));
+}
 
 class Go3DRenderer {
     constructor(app) {
@@ -356,6 +428,8 @@ class Go3DApp {
         this.timeRemaining = { black: this.timeLimit, white: this.timeLimit };
         this.timerInterval = null;
         this.bindEvents();
+        applyLanguage();
+        this.setStatus(tr('status.start'));
         this.updateUI();
         this.tryJoinSharedRoomFromUrl();
     }
@@ -407,14 +481,21 @@ class Go3DApp {
         this.copyLinkBtn.addEventListener('click', async () => {
             if (!this.shareLinkInput.value) return;
             await navigator.clipboard?.writeText(this.shareLinkInput.value);
-            this.copyLinkBtn.textContent = 'Copied';
-            window.setTimeout(() => { this.copyLinkBtn.textContent = 'Copy'; }, 1000);
+            this.copyLinkBtn.textContent = tr('online.copied');
+            window.setTimeout(() => { this.copyLinkBtn.textContent = tr('online.copy'); }, 1000);
+        });
+        document.querySelectorAll('[data-lang-option]').forEach((button) => {
+            button.addEventListener('click', () => setLanguage(button.dataset.langOption));
+        });
+        window.addEventListener('languagechange', () => {
+            this.updateUI();
+            if (!this.network?.isConnected && this.gameModeSelect.value !== 'online') this.setOnlineColor(null);
         });
     }
 
     playAt(coord) {
         if (!this.canActFor(this.logic.currentPlayer)) {
-            this.setStatus(`Waiting for ${this.logic.currentPlayer}.`);
+            this.setStatus(tr('status.waitingForColor', { color: this.colorName(this.logic.currentPlayer) }));
             return;
         }
         const result = this.logic.tryPlay(coord, this.logic.currentPlayer);
@@ -422,12 +503,12 @@ class Go3DApp {
             this.setStatus(result.error);
             return;
         }
-        this.afterLocalAction(`${this.capitalize(this.logic.currentPlayer)} to play.`);
+        this.afterLocalAction(tr('status.toPlay', { color: this.colorName(this.logic.currentPlayer) }));
     }
 
     passTurn() {
         if (!this.canActFor(this.logic.currentPlayer)) {
-            this.setStatus(`Waiting for ${this.logic.currentPlayer}.`);
+            this.setStatus(tr('status.waitingForColor', { color: this.colorName(this.logic.currentPlayer) }));
             return;
         }
         const color = this.logic.currentPlayer;
@@ -436,7 +517,7 @@ class Go3DApp {
             this.setStatus(result.error);
             return;
         }
-        this.afterLocalAction(this.logic.scoringPending ? 'Two passes. Both players must agree to count.' : `${this.capitalize(this.logic.currentPlayer)} to play.`);
+        this.afterLocalAction(this.logic.scoringPending ? tr('status.twoPasses') : tr('status.toPlay', { color: this.colorName(this.logic.currentPlayer) }));
     }
 
     agreeCount() {
@@ -452,7 +533,7 @@ class Go3DApp {
             this.stopTimer();
             this.setStatus(this.resultText());
         } else {
-            this.setStatus(`${this.capitalize(color)} agreed. Waiting for ${this.capitalize(otherColor(color))}.`);
+            this.setStatus(tr('status.agreed', { color: this.colorName(color), other: this.colorName(otherColor(color)) }));
         }
         this.broadcastState();
         this.updateUI();
@@ -464,7 +545,7 @@ class Go3DApp {
         this.logic.winner = otherColor(color);
         this.logic.moveHistory.unshift({ type: 'surrender', color, number: this.logic.moveNumber });
         this.stopTimer();
-        this.setStatus(`${this.capitalize(color)} surrendered. ${this.capitalize(this.logic.winner)} wins.`);
+        this.setStatus(tr('status.surrendered', { color: this.colorName(color), winner: this.colorName(this.logic.winner) }));
         this.broadcastState();
         this.updateUI();
     }
@@ -486,7 +567,7 @@ class Go3DApp {
         this.timeLimit = Number(this.timerSelect.value) || 0;
         this.timeRemaining = { black: this.timeLimit, white: this.timeLimit };
         this.stopTimer();
-        this.setStatus('Select a glowing node for Black.');
+        this.setStatus(tr('status.start'));
         if (broadcast) this.broadcastState();
         this.updateUI();
     }
@@ -504,7 +585,7 @@ class Go3DApp {
                 this.logic.gameOver = true;
                 this.logic.winner = otherColor(color);
                 this.stopTimer();
-                this.setStatus(`${this.capitalize(color)} ran out of time. ${this.capitalize(this.logic.winner)} wins.`);
+                this.setStatus(tr('status.timedOut', { color: this.colorName(color), winner: this.colorName(this.logic.winner) }));
                 this.broadcastState();
             }
             this.updateTimerDisplay();
@@ -543,7 +624,7 @@ class Go3DApp {
         if (!online) {
             this.network.close({ silent: true });
             this.myColor = null;
-            this.onlineColorEl.textContent = 'Local pass and play';
+            this.onlineColorEl.textContent = tr('online.localStatus');
             this.unlockSettingsIfLocal();
         }
         this.updateUI();
@@ -551,11 +632,11 @@ class Go3DApp {
 
     updateUI() {
         const isR3 = this.logic.topology === 'r3';
-        this.modeDisplay.textContent = isR3 ? `${this.logic.size}^3 R3 Go` : `${this.logic.size} x ${this.logic.size} T2 Go`;
-        this.modeInfo.textContent = isR3 ? 'R3 uses open boundaries in x, y, and z.' : 'T2 wraps both directions on the torus board.';
-        this.turnEl.textContent = this.logic.gameOver ? this.resultText() : this.logic.scoringPending ? 'Counting pending' : `${this.capitalize(this.logic.currentPlayer)} to play`;
-        this.blackCapturedEl.textContent = `${this.logic.captures.black} ${this.logic.captures.black === 1 ? 'stone' : 'stones'}`;
-        this.whiteCapturedEl.textContent = `${this.logic.captures.white} ${this.logic.captures.white === 1 ? 'stone' : 'stones'}`;
+        this.modeDisplay.textContent = tr(isR3 ? 'mode.r3Display' : 'mode.t2Display', { size: this.logic.size });
+        this.modeInfo.textContent = tr(isR3 ? 'mode.r3Info' : 'mode.t2Info');
+        this.turnEl.textContent = this.logic.gameOver ? this.resultText() : this.logic.scoringPending ? tr('status.countingPending') : tr('status.toPlay', { color: this.colorName(this.logic.currentPlayer) });
+        this.blackCapturedEl.textContent = tr('captured.stones', { count: this.logic.captures.black });
+        this.whiteCapturedEl.textContent = tr('captured.stones', { count: this.logic.captures.white });
         this.blackTimerBox.classList.toggle('active', this.logic.currentPlayer === 'black' && !this.logic.gameOver);
         this.whiteTimerBox.classList.toggle('active', this.logic.currentPlayer === 'white' && !this.logic.gameOver);
         this.countBtn.disabled = !this.logic.scoringPending || this.logic.gameOver || (this.gameModeSelect.value === 'online' && !this.myColor);
@@ -573,14 +654,14 @@ class Go3DApp {
 
     renderHistory() {
         if (!this.logic.moveHistory.length) {
-            this.historyEl.innerHTML = '<div class="move-history-item muted">Game started.</div>';
+            this.historyEl.innerHTML = `<div class="move-history-item muted">${tr('history.started')}</div>`;
             return;
         }
         this.historyEl.innerHTML = this.logic.moveHistory.slice(0, 80).map((move) => {
             if (move.type === 'play') return `<div class="move-history-item">${move.number}. ${this.capitalize(move.color)} (${move.coord.map((v) => v + 1).join(',')})${move.captured ? ` captures ${move.captured}` : ''}</div>`;
             if (move.type === 'pass') return `<div class="move-history-item">${move.number}. ${this.capitalize(move.color)} passes</div>`;
             if (move.type === 'surrender') return `<div class="move-history-item">${this.capitalize(move.color)} surrendered</div>`;
-            if (move.type === 'score') return `<div class="move-history-item">Final count: ${this.resultText()}</div>`;
+            if (move.type === 'score') return `<div class="move-history-item">${tr('status.finalCount')} ${this.resultText()}</div>`;
             return '';
         }).join('');
     }
@@ -592,14 +673,14 @@ class Go3DApp {
             return;
         }
         this.scorePanel.hidden = false;
-        this.scoreResult.textContent = `Black ${this.logic.score.black}, White ${this.logic.score.white} including ${this.logic.score.komi} komi. ${this.resultText()}`;
+        this.scoreResult.textContent = tr('score.summary', { black: this.logic.score.black, white: this.logic.score.white, komi: this.logic.score.komi, result: this.resultText() });
     }
 
     resultText() {
         if (!this.logic.gameOver) return '';
-        if (this.logic.winner === 'draw') return 'Draw';
-        if (this.logic.score) return `${this.capitalize(this.logic.winner)} wins by ${this.logic.score.margin}`;
-        return `${this.capitalize(this.logic.winner)} wins`;
+        if (this.logic.winner === 'draw') return tr('score.draw');
+        if (this.logic.score) return tr('score.winsBy', { color: this.colorName(this.logic.winner), margin: this.logic.score.margin });
+        return tr('score.wins', { color: this.colorName(this.logic.winner) });
     }
 
     formatTime(value) {
@@ -613,13 +694,17 @@ class Go3DApp {
         return String(value || '').charAt(0).toUpperCase() + String(value || '').slice(1);
     }
 
+    colorName(color) {
+        return tr('colors.' + color);
+    }
+
     setStatus(text) {
         this.statusEl.textContent = text;
     }
 
     setOnlineColor(color) {
         this.myColor = color;
-        this.onlineColorEl.textContent = color ? `Online as ${this.capitalize(color)}` : 'Local pass and play';
+        this.onlineColorEl.textContent = color ? tr('online.onlineAs', { color: this.colorName(color) }) : tr('online.localStatus');
     }
 
     getNetworkSettings() {
@@ -658,7 +743,7 @@ class Go3DApp {
         this.gameStarted = Boolean(state.gameStarted);
         this.lockSettings();
         if (this.gameStarted && !this.logic.gameOver && !this.logic.scoringPending) this.startTimer();
-        this.setStatus(this.logic.gameOver ? this.resultText() : 'Synced online game.');
+        this.setStatus(this.logic.gameOver ? this.resultText() : tr('status.synced'));
         this.updateUI();
     }
 

@@ -20,27 +20,27 @@
         <section class="play-area">
             <header class="top-bar">
                 <div>
-                    <h1>3D Go</h1>
-                    <p>R3 lattice Go and T2 torus Go with 9, 13, and 19 scale options.</p>
+                    <h1 data-i18n="app.title">3D Go</h1>
+                    <p data-i18n="app.tagline">R3 lattice Go and T2 torus Go with 9, 13, and 19 scale options.</p>
                 </div>
             </header>
 
             <div class="game-info-bar">
                 <div class="turn-pill" id="playerTurn">Black to play</div>
                 <div class="timer-section">
-                    <div class="player-timer active" id="blackTimerBox"><span>Black</span><strong id="blackTimer">10:00</strong></div>
-                    <div class="player-timer" id="whiteTimerBox"><span>White</span><strong id="whiteTimer">10:00</strong></div>
+                    <div class="player-timer active" id="blackTimerBox"><span data-i18n="colors.black">Black</span><strong id="blackTimer">10:00</strong></div>
+                    <div class="player-timer" id="whiteTimerBox"><span data-i18n="colors.white">White</span><strong id="whiteTimer">10:00</strong></div>
                 </div>
                 <div class="boundary-display" id="modeDisplay">R3 Go</div>
             </div>
 
             <div class="captured-pieces-container">
                 <div class="captured-side">
-                    <div class="captured-label">Captured by Black</div>
+                    <div class="captured-label" data-i18n="captured.byBlack">Captured by Black</div>
                     <div class="capture-count" id="blackCaptured">0 stones</div>
                 </div>
                 <div class="captured-side">
-                    <div class="captured-label">Captured by White</div>
+                    <div class="captured-label" data-i18n="captured.byWhite">Captured by White</div>
                     <div class="capture-count" id="whiteCaptured">0 stones</div>
                 </div>
             </div>
@@ -57,50 +57,50 @@
 
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h2>Game Controls</h2>
+                <h2 data-i18n="controls.title">Game Controls</h2>
                 <a class="space-home-link" href="../../" aria-label="Back to Topological Board Game picker">Home</a>
             </div>
 
             <div class="status-card">
                 <div class="status-line" id="gameStatus">Select a glowing node for Black.</div>
-                <div class="status-line muted" id="onlineColorStatus">Local pass and play</div>
+                <div class="status-line muted" id="onlineColorStatus" data-i18n="online.localStatus">Local pass and play</div>
             </div>
 
             <div class="control-group">
-                <label for="gameModeSelect">Game Mode</label>
+                <label for="gameModeSelect" data-i18n="controls.gameMode">Game Mode</label>
                 <select id="gameModeSelect">
-                    <option value="local">Local Pass and Play</option>
-                    <option value="online">Online Multiplayer</option>
+                    <option value="local" data-i18n="controls.local">Local Pass and Play</option>
+                    <option value="online" data-i18n="controls.online">Online Multiplayer</option>
                 </select>
             </div>
 
             <div class="online-controls" id="onlineControls">
-                <button class="online-btn match" id="findMatchBtn" type="button">Find Match</button>
-                <div class="divider-text">PRIVATE ROOM</div>
-                <button class="online-btn create" id="createRoomBtn" type="button">Create Room</button>
-                <div class="divider-text">OR</div>
-                <input id="roomIdInput" type="text" autocomplete="off" placeholder="5-digit room code or shared link">
-                <button class="online-btn join" id="joinRoomBtn" type="button">Join Room</button>
+                <button class="online-btn match" id="findMatchBtn" type="button" data-i18n="online.findMatch">Find Match</button>
+                <div class="divider-text" data-i18n="online.privateRoom">PRIVATE ROOM</div>
+                <button class="online-btn create" id="createRoomBtn" type="button" data-i18n="online.createRoom">Create Room</button>
+                <div class="divider-text" data-i18n="online.or">OR</div>
+                <input id="roomIdInput" type="text" autocomplete="off" placeholder="5-digit room code or shared link" data-i18n-placeholder="online.roomInput">
+                <button class="online-btn join" id="joinRoomBtn" type="button" data-i18n="online.joinRoom">Join Room</button>
                 <div class="room-info" id="roomInfo" hidden>
-                    <strong>Room Code</strong>
+                    <strong data-i18n="online.roomCode">Room Code</strong>
                     <div class="room-id-display" id="roomIdDisplay"></div>
                     <div class="share-link-box">
                         <input class="share-link-input" id="shareLinkInput" type="text" readonly>
-                        <button class="copy-btn" id="copyLinkBtn" type="button">Copy</button>
+                        <button class="copy-btn" id="copyLinkBtn" type="button" data-i18n="online.copy">Copy</button>
                     </div>
                 </div>
             </div>
 
             <div class="control-group">
-                <label for="goModeSelect">Go Space</label>
+                <label for="goModeSelect" data-i18n="controls.goSpace">Go Space</label>
                 <select id="goModeSelect">
-                    <option value="r3" selected>R3 Go</option>
-                    <option value="t2">T2 Torus Go</option>
+                    <option value="r3" selected data-i18n="mode.r3Option">R3 Go</option>
+                    <option value="t2" data-i18n="mode.t2Option">T2 Torus Go</option>
                 </select>
             </div>
 
             <div class="control-group">
-                <label for="boardSizeSelect">Board Scale</label>
+                <label for="boardSizeSelect" data-i18n="controls.boardScale">Board Scale</label>
                 <select id="boardSizeSelect">
                     <option value="9">9</option>
                     <option value="13">13</option>
@@ -110,36 +110,42 @@
             <div class="boundary-info" id="modeInfo">R3 uses open boundaries in x, y, and z. T2 wraps both torus directions.</div>
 
             <div class="control-group">
-                <label for="timerSelect">Timer per Player</label>
+                <label for="timerSelect" data-i18n="controls.timer">Timer per Player</label>
                 <select id="timerSelect">
-                    <option value="0">No Timer</option>
-                    <option value="300">5 Minutes</option>
-                    <option value="600" selected>10 Minutes</option>
-                    <option value="900">15 Minutes</option>
-                    <option value="1800">30 Minutes</option>
-                    <option value="3600">1 Hour</option>
+                    <option value="0" data-i18n="timer.none">No Timer</option>
+                    <option value="300" data-i18n="timer.five">5 Minutes</option>
+                    <option value="600" selected data-i18n="timer.ten">10 Minutes</option>
+                    <option value="900" data-i18n="timer.fifteen">15 Minutes</option>
+                    <option value="1800" data-i18n="timer.thirty">30 Minutes</option>
+                    <option value="3600" data-i18n="timer.hour">1 Hour</option>
                 </select>
             </div>
 
             <div class="control-grid">
-                <button id="cameraReset" type="button">Reset Camera</button>
-                <button id="passBtn" type="button">Pass</button>
-                <button id="countBtn" type="button">Agree Count</button>
-                <button id="newGameBtn" type="button">New Game</button>
-                <button id="surrenderBtn" class="danger" type="button">Surrender</button>
+                <button id="cameraReset" type="button" data-i18n="controls.resetCamera">Reset Camera</button>
+                <button id="passBtn" type="button" data-i18n="controls.pass">Pass</button>
+                <button id="countBtn" type="button" data-i18n="controls.agreeCount">Agree Count</button>
+                <button id="newGameBtn" type="button" data-i18n="controls.newGame">New Game</button>
+                <button id="surrenderBtn" class="danger" type="button" data-i18n="controls.surrender">Surrender</button>
             </div>
 
             <section class="panel">
-                <h3>Move History</h3>
+                <h3 data-i18n="history.title">Move History</h3>
                 <div id="moveHistoryList" class="move-history"></div>
             </section>
 
             <section class="panel">
-                <h3>Rules</h3>
-                <div class="rules-text">Area scoring with 7.5 komi. R3 groups use six face-adjacent liberties. T2 groups use four torus-adjacent liberties with both directions periodic.</div>
+                <h3 data-i18n="rules.title">Rules</h3>
+                <div class="rules-text" data-i18n="rules.text">Area scoring with 7.5 komi. R3 groups use six face-adjacent liberties. T2 groups use four torus-adjacent liberties with both directions periodic.</div>
             </section>
         </aside>
     </main>
+
+    <div class="language-switch" aria-label="Language" data-i18n-aria-label="language.label">
+        <button type="button" class="lang-option active" data-lang-option="en" aria-pressed="true" title="English" data-i18n-title="language.english">En</button>
+        <span class="lang-divider" aria-hidden="true">|</span>
+        <button type="button" class="lang-option" data-lang-option="zh" aria-pressed="false" title="Chinese" data-i18n-title="language.chinese">&#20013;</button>
+    </div>
 
     <script type="module" src="./js/main.js"></script>
 </body>

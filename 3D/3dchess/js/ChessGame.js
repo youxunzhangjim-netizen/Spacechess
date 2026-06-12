@@ -2,6 +2,7 @@ import { CubeChessGame } from './CubeChessGame.js';
 import { MobiusChessGame } from './MobiusChessGame.js';
 import { RP2ChessGame } from './RP2ChessGame.js';
 import { TorusChessGame } from './TorusChessGame.js';
+import { I18N, setLanguage } from './i18n.js';
 
 const VARIANTS = {
     torus: {
@@ -12,7 +13,14 @@ const VARIANTS = {
         rulesTitle: 'Torus Rules',
         rulesText: 'Rooks, bishops, queens, knights, kings, castling, en passant, check, and mate use 2D chess movement on 112 torus blocks. The board is 8 columns by 14 periodic rows, with the six extra blank rows placed between the initial armies so the king rows start opposite each other. Pawns promote when they reach the opponent home row.',
         boundaryValue: 'periodic',
-        controller: TorusChessGame
+        controller: TorusChessGame,
+        zh: {
+                  "title": "T2 环面棋",
+                  "tagline": "在加长三维环面上的二维国际象棋：短方向 8 格，长方向 14 行。",
+                  "canvasLabel": "三维环面棋盘",
+                  "rulesTitle": "环面规则",
+                  "rulesText": "车、象、后、马、王、易位、吃过路兵、将军与将死都使用 112 个环面格上的二维国际象棋走法。棋盘为 8 列 x 14 个周期行，双方初始阵之间有六行空格。兵到达对方底线时升变。"
+        }
     },
     cube: {
         label: 'R3',
@@ -22,7 +30,14 @@ const VARIANTS = {
         rulesTitle: '3D Movement',
         rulesText: "Rook: axes. Bishop: plane and body diagonals. Queen: all straight 3D lines. Knight: 2-1 jumps on any plane. King: one cell in any direction. Pawn: forward on X, Y, or Z, captures forward diagonals, and promotes only on the opponent's Y or Z home face inside the bottom three rows.",
         boundaryValue: 'forbidden',
-        controller: CubeChessGame
+        controller: CubeChessGame,
+        zh: {
+                  "title": "R3 三维棋",
+                  "tagline": "支持本地与在线的立方体国际象棋，使用完整三维走法。",
+                  "canvasLabel": "三维棋盘",
+                  "rulesTitle": "三维走法",
+                  "rulesText": "车沿坐标轴走，象沿平面与空间对角线走，后可走所有三维直线，马在任意平面跳 2-1，王向任意方向走一格。兵沿 X、Y 或 Z 前进并斜向吃子。"
+        }
     },
     rp2: {
         label: 'RP2',
@@ -32,7 +47,14 @@ const VARIANTS = {
         rulesTitle: 'RP2 Rules',
         rulesText: 'Pieces use 2D chess movement on one 12x14 RP2 board. Crossing left or right lands on the opposite edge with y reversed; crossing top or bottom lands on the opposite edge with x reversed. Move hints that cross a boundary light the raised cage arrow green.',
         boundaryValue: 'rp2',
-        controller: RP2ChessGame
+        controller: RP2ChessGame,
+        zh: {
+                  "title": "RP2 棋",
+                  "tagline": "在一个 12x14 RP2 基本棋盘上进行二维国际象棋，并使用对映边界粘合。",
+                  "canvasLabel": "三维 RP2 棋盘",
+                  "rulesTitle": "RP2 规则",
+                  "rulesText": "棋子在一个 12x14 RP2 棋盘上使用二维国际象棋走法。穿过左右边界会到达对边并反转 y；穿过上下边界会到达对边并反转 x。越界提示会点亮升起的绿色映射箭头。"
+        }
     },
     mobius: {
         label: 'M',
@@ -42,7 +64,14 @@ const VARIANTS = {
         rulesTitle: 'Mobius Rules',
         rulesText: 'Pieces use 2D chess movement on both sides of the Mobius band. The lateral x edges are open. Crossing the winding y edge goes through the twist, reverses x, and lands on the opposite surface side. White and Black start on the same board coordinates on opposite surface sides, with two pawn rows around the king row. Pawns promote on the opposite side at the opponent king row.',
         boundaryValue: 'mobius',
-        controller: MobiusChessGame
+        controller: MobiusChessGame,
+        zh: {
+                  "title": "Mobius 棋",
+                  "tagline": "在可旋转 Mobius 带上进行二维国际象棋，横向边界开放且两面都可走。",
+                  "canvasLabel": "三维 Mobius 棋盘",
+                  "rulesTitle": "Mobius 规则",
+                  "rulesText": "棋子在 Mobius 带两面使用二维国际象棋走法。横向 x 边界开放；穿过缠绕 y 边界会经过扭转、反转 x 并到达另一面。双方从相同坐标的相反表面出发。"
+        }
     }
 };
 
@@ -55,6 +84,7 @@ export class ChessGame {
         this.activeGame = null;
 
         this.prepareVariantControls();
+        this.installLanguageSwitch();
         this.activeGame = new VARIANTS[this.variant].controller();
         this.applyVariantText();
         this.installBoardGameSwitch();
@@ -116,6 +146,21 @@ export class ChessGame {
         });
     }
 
+    installLanguageSwitch() {
+        document.querySelectorAll('[data-lang-option]').forEach((button) => {
+            button.addEventListener('click', () => setLanguage(button.dataset.langOption));
+        });
+
+        window.addEventListener('languagechange', () => {
+            this.applyVariantText();
+            this.activeGame?.updateBoundaryInfo?.();
+            this.activeGame?.renderPromotionButtons?.();
+            this.activeGame?.network?.refreshStatus?.();
+            this.activeGame?.updateTimerDisplay?.();
+            this.activeGame?.updateUI?.();
+        });
+    }
+
     syncVariantLock() {
         const locked = Boolean(this.activeGame?.gameStarted && !this.activeGame?.gameOver);
         const boardGameSelect = document.getElementById('boardGameSelect');
@@ -125,9 +170,13 @@ export class ChessGame {
         }
     }
 
+    variantText(variant, key) {
+        return variant.zh && I18N.current === 'zh' ? variant.zh[key] || variant[key] : variant[key];
+    }
+
     applyVariantText() {
         const variant = VARIANTS[this.variant];
-        document.title = variant.title;
+        document.title = this.variantText(variant, 'title');
 
         const heading = document.querySelector('.top-bar h1');
         const tagline = document.querySelector('.top-bar p');
@@ -135,11 +184,11 @@ export class ChessGame {
         const rulesTitle = document.querySelector('.panel:last-of-type h3');
         const rulesText = document.querySelector('.rules-text');
 
-        if (heading) heading.textContent = variant.title;
-        if (tagline) tagline.textContent = variant.tagline;
-        if (canvas) canvas.setAttribute('aria-label', variant.canvasLabel);
-        if (rulesTitle) rulesTitle.textContent = variant.rulesTitle;
-        if (rulesText) rulesText.textContent = variant.rulesText;
+        if (heading) heading.textContent = this.variantText(variant, 'title');
+        if (tagline) tagline.textContent = this.variantText(variant, 'tagline');
+        if (canvas) canvas.setAttribute('aria-label', this.variantText(variant, 'canvasLabel'));
+        if (rulesTitle) rulesTitle.textContent = this.variantText(variant, 'rulesTitle');
+        if (rulesText) rulesText.textContent = this.variantText(variant, 'rulesText');
 
         this.prepareVariantControls();
     }

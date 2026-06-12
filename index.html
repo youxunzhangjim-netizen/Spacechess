@@ -7,6 +7,21 @@
     <link rel="stylesheet" href="./css/launcher.css">
 </head>
 <body>
+    <div class="launcher-background-torus" aria-hidden="true">
+        <div class="torus-stage">
+            <span class="torus-piece white tp1"></span>
+            <span class="torus-piece white tp2"></span>
+            <span class="torus-piece white tp3"></span>
+            <span class="torus-piece white tp4"></span>
+            <span class="torus-piece black tp5"></span>
+            <span class="torus-piece black tp6"></span>
+            <span class="torus-piece black tp7"></span>
+            <span class="torus-piece black tp8"></span>
+            <span class="torus-piece gold tp9"></span>
+            <span class="torus-piece gold tp10"></span>
+        </div>
+    </div>
+
     <main class="launcher-shell">
         <section class="launcher-hero" aria-labelledby="launcherTitle">
             <div class="brand-block">
@@ -45,7 +60,19 @@
 
                 <section class="dimension-card dimension-3d" aria-labelledby="dimension3dTitle">
                     <span class="popularity-badge" data-popularity-key="dimension-3d">-- waiting</span>
-                    <span class="dimension-visual image-plane" aria-hidden="true"></span>
+                    <span class="dimension-visual chess-cube-preview" aria-hidden="true">
+                        <span class="cube-preview-board">
+                            <span class="cube-preview-layer layer-1"></span>
+                            <span class="cube-preview-layer layer-2"></span>
+                            <span class="cube-preview-layer layer-3"></span>
+                            <span class="cube-preview-piece white cp1"></span>
+                            <span class="cube-preview-piece white cp2"></span>
+                            <span class="cube-preview-piece white cp3"></span>
+                            <span class="cube-preview-piece black cp4"></span>
+                            <span class="cube-preview-piece black cp5"></span>
+                            <span class="cube-preview-piece black cp6"></span>
+                        </span>
+                    </span>
                     <span class="dimension-copy">
                         <strong id="dimension3dTitle">3D</strong>
                         <small>R3, T2, RP2, Mobius, lattice Go</small>

@@ -133,3 +133,58 @@ button:disabled, select:disabled { opacity: 0.55; cursor: not-allowed; }
     .game-info-bar, .captured-pieces-container { grid-template-columns: 1fr; display: grid; }
     .timer-section { grid-template-columns: 1fr 1fr; }
 }
+body > .language-switch {
+    position: fixed;
+    top: 10px;
+    right: 12px;
+    z-index: 100;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    width: auto;
+    max-width: max-content;
+    padding: 4px 7px;
+    border: 1px solid rgba(56, 189, 248, 0.42);
+    border-radius: 7px;
+    background: rgba(15, 23, 42, 0.95);
+    color: #cbd5e1;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.26);
+}
+body > .language-switch .lang-option {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 0;
+    height: 22px;
+    min-height: 0;
+    padding: 0 3px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 850;
+    line-height: 1;
+}
+body > .language-switch .lang-option:hover,
+body > .language-switch .lang-option:focus-visible {
+    background: transparent;
+    color: #f8fafc;
+    outline: none;
+}
+body > .language-switch .lang-option.active {
+    color: #38bdf8;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+body > .language-switch .lang-option:active { transform: none; }
+body > .language-switch .lang-divider {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    color: rgba(203, 213, 225, 0.72);
+    font-size: 12px;
+    line-height: 1;
+}
