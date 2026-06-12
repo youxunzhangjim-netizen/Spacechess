@@ -1,0 +1,19 @@
+{
+  "name": "2dchess",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5174",
+    "local": "vite --host 127.0.0.1 --port 5174 --open",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4174",
+    "verify:castling": "node tools/verify-castling.mjs"
+  },
+  "dependencies": {
+    "peerjs": "^1.5.5"
+  },
+  "devDependencies": {
+    "vite": "^8.0.16"
+  }
+}

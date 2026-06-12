@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Chess with Boundary Conditions</title>
+    <link rel="stylesheet" href="./css/styles.css">
+    <script src="./vendor/peerjs.min.js"></script>
+</head>
+<body>
+    <a class="space-home-link" href="../" aria-label="Back to Space Chess picker">Home</a>
+
+    <div class="container">
+        <div class="header">
+            <h1 data-i18n="app.title">2D Chess with Boundary Conditions</h1>
+            <p data-i18n="app.subtitle">Local and online multiplayer with forbidden, reflection, and periodic boundaries.</p>
+        </div>
+
+        <div class="main-content">
+            <div class="board-wrapper">
+                <div class="game-info-bar">
+                    <div class="timer-section">
+                        <div class="player-timer" id="whiteTimerBox">
+                            <span class="timer-label" data-i18n="colors.whiteLabel">White:</span>
+                            <span class="timer-value" id="whiteTimer">5:00</span>
+                        </div>
+                        <div class="player-timer" id="blackTimerBox">
+                            <span class="timer-label" data-i18n="colors.blackLabel">Black:</span>
+                            <span class="timer-value" id="blackTimer">5:00</span>
+                        </div>
+                    </div>
+                    <div class="boundary-display">
+                        <span id="boundaryMode">Forbidden</span>
+                    </div>
+                </div>
+
+                <div class="captured-pieces-container">
+                    <div class="captured-side">
+                        <div class="captured-label" data-i18n="captured.white">White Captured:</div>
+                        <div class="captured-icons" id="whiteCaptured"><span class="muted">(none)</span></div>
+                    </div>
+                    <div class="captured-side">
+                        <div class="captured-label" data-i18n="captured.black">Black Captured:</div>
+                        <div class="captured-icons" id="blackCaptured"><span class="muted">(none)</span></div>
+                    </div>
+                </div>
+
+                <div class="board-container">
+                    <div id="chessboard" aria-label="2D chess board"></div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <h2 data-i18n="controls.title">Game Controls</h2>
+
+                <div class="status">
+                    <p><span class="player-turn" id="playerTurn">White's Turn</span></p>
+                    <p class="status-line" id="gameStatus">Select a white piece to begin.</p>
+                    <p class="status-line muted" id="onlineColorStatus">Local pass and play</p>
+                </div>
+
+                <div class="control-group">
+                    <label for="gameModeSelect" data-i18n="controls.gameMode">Game Mode:</label>
+                    <select id="gameModeSelect">
+                        <option value="local" data-i18n="controls.local">Local (Pass & Play)</option>
+                        <option value="online" data-i18n="controls.online">Online (Multiplayer)</option>
+                    </select>
+                </div>
+
+                <div class="online-controls" id="onlineControls">
+                    <div class="connection-status disconnected" id="connectionStatus">Status: Disconnected</div>
+
+                    <button class="online-btn match" id="findMatchBtn" type="button" data-i18n="online.findMatch">Find Match</button>
+                    <div class="divider-text" data-i18n="online.privateRoom">PRIVATE ROOM</div>
+
+                    <button class="online-btn create" id="createRoomBtn" type="button" data-i18n="online.createRoom">Create Room</button>
+
+                    <div class="divider-text" data-i18n="online.or">- OR -</div>
+
+                    <input type="text" id="roomIdInput" autocomplete="off" placeholder="Enter Room ID to join..." data-i18n-placeholder="online.roomInput">
+                    <button class="online-btn join" id="joinRoomBtn" type="button" data-i18n="online.joinRoom">Join Room</button>
+
+                    <div class="room-info" id="roomInfo" hidden>
+                        <div class="room-block">
+                            <strong data-i18n="online.roomId">Room ID:</strong>
+                            <div class="room-id-display" id="roomIdDisplay"></div>
+                        </div>
+                        <div class="share-link-box">
+                            <input type="text" class="share-link-input" id="shareLinkInput" readonly>
+                            <button class="copy-btn" id="copyLinkBtn" type="button" data-i18n="online.copy">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="boundarySelect" data-i18n="controls.boundary">Boundary Condition:</label>
+                    <select id="boundarySelect">
+                        <option value="forbidden" data-i18n="boundary.names.forbidden">Forbidden (Standard)</option>
+                        <option value="reflection" data-i18n="boundary.names.reflection">Reflection</option>
+                        <option value="periodic" data-i18n="boundary.names.periodic">Periodic</option>
+                    </select>
+                </div>
+
+                <div class="boundary-info" id="boundaryInfo"></div>
+
+                <div class="control-group">
+                    <label for="timerSelect" data-i18n="controls.timer">Timer per Player:</label>
+                    <select id="timerSelect">
+                        <option value="0" data-i18n="timer.none">No Timer</option>
+                        <option value="180" data-i18n="timer.three">3 Minutes</option>
+                        <option value="300" data-i18n="timer.five">5 Minutes</option>
+                        <option value="600" selected data-i18n="timer.ten">10 Minutes</option>
+                        <option value="1800" data-i18n="timer.thirty">30 Minutes</option>
+                        <option value="3600" data-i18n="timer.sixty">60 Minutes</option>
+                    </select>
+                </div>
+
+                <div class="controls">
+                    <button id="newGameBtn" type="button" data-i18n="controls.newGame">New Game</button>
+                    <button id="surrenderBtn" type="button" data-i18n="controls.surrender">Surrender</button>
+                    <button id="offerDrawBtn" class="warning" type="button" data-i18n="controls.offerDraw">Offer Draw</button>
+                </div>
+
+                <div class="info-section">
+                    <h3 data-i18n="history.title">Move History</h3>
+                    <div class="move-history" id="moveHistory"></div>
+                </div>
+
+                <div class="piece-legend">
+                    <strong data-i18n="pieces.legendTitle">Piece Symbols:</strong>
+                    <div id="pieceLegendLines"></div>
+                </div>
+
+                <div class="color-board" aria-label="Board colors">
+                    <button class="color-pair" data-theme="0" type="button" aria-label="Classic board colors">
+                        <span class="color-swatch" style="background:#f1f5f9;"></span>
+                        <span class="color-swatch" style="background:#334155;"></span>
+                    </button>
+                    <button class="color-pair" data-theme="1" type="button" aria-label="Brown board colors">
+                        <span class="color-swatch" style="background:#e9d8d0;"></span>
+                        <span class="color-swatch" style="background:#5b4b43;"></span>
+                    </button>
+                    <button class="color-pair" data-theme="2" type="button" aria-label="Green board colors">
+                        <span class="color-swatch" style="background:#dde7e3;"></span>
+                        <span class="color-swatch" style="background:#35524a;"></span>
+                    </button>
+                    <button class="color-pair" data-theme="3" type="button" aria-label="Blue board colors">
+                        <span class="color-swatch" style="background:#d9e2ec;"></span>
+                        <span class="color-swatch" style="background:#334155;"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hints-toggle">
+        <label for="hintsToggleSwitch" data-i18n="hints.label">Move Hints</label>
+        <button type="button" class="toggle-switch active" id="hintsToggleSwitch" aria-pressed="true">
+            <span class="toggle-slider"></span>
+        </button>
+    </div>
+
+    <div class="language-switch" aria-label="Language" data-i18n-aria-label="language.label">
+        <button type="button" class="lang-option active" data-lang-option="en" aria-pressed="true" title="English" data-i18n-title="language.english">En</button>
+        <span class="lang-divider" aria-hidden="true">|</span>
+        <button type="button" class="lang-option" data-lang-option="zh" aria-pressed="false" title="Chinese" data-i18n-title="language.chinese">&#20013;</button>
+    </div>
+
+    <div id="promotionModal" class="promotion-modal" aria-hidden="true">
+        <div class="promotion-dialog">
+            <h3 data-i18n="promotion.title">Promote Pawn To:</h3>
+            <div class="promotion-options">
+                <button class="promotion-btn" type="button" data-piece="Q"></button>
+                <button class="promotion-btn" type="button" data-piece="R"></button>
+                <button class="promotion-btn" type="button" data-piece="B"></button>
+                <button class="promotion-btn" type="button" data-piece="N"></button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>

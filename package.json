@@ -1,0 +1,28 @@
+{
+  "name": "gameprojects",
+  "private": true,
+  "workspaces": [
+    "2dchess",
+    "3dchess",
+    "toruschess"
+  ],
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5172",
+    "local": "vite --host 127.0.0.1 --port 5172 --open",
+    "build": "node tools/build-website.mjs",
+    "build:2d": "npm run build --workspace 2dchess",
+    "build:3d": "npm run build --workspace 3dchess",
+    "build:3dspace": "npm run build --workspace toruschess",
+    "dev:2d": "npm run dev --workspace 2dchess",
+    "dev:3d": "npm run dev --workspace 3dchess",
+    "dev:3dspace": "npm run dev --workspace toruschess"
+  },
+  "dependencies": {
+    "peerjs": "^1.5.5",
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "vite": "^8.0.16"
+  }
+}
