@@ -625,4 +625,8 @@ class Reversi3DApp {
     }
 }
 
-window.reversi3dApp = new Reversi3DApp();
+try {
+    window.reversi3dApp = new Reversi3DApp();
+} catch (error) {
+    window.drawReversiFallback?.(error);
+}

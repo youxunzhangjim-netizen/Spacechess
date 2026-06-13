@@ -90,6 +90,68 @@
         </aside>
     </main>
 
+    <script>
+        (() => {
+            function drawFallback(error) {
+                const canvas = document.getElementById('reversiBoard');
+                const status = document.getElementById('gameStatus');
+                if (!canvas || canvas.dataset.fallbackDrawn === 'true') return;
+                canvas.dataset.fallbackDrawn = 'true';
+                const rect = canvas.parentElement.getBoundingClientRect();
+                const scale = Math.min(window.devicePixelRatio || 1, 2);
+                canvas.width = Math.max(320, Math.floor(rect.width * scale));
+                canvas.height = Math.max(360, Math.floor(rect.height * scale));
+                const context = canvas.getContext('2d');
+                if (!context) return;
+                context.scale(scale, scale);
+                const width = canvas.width / scale;
+                const height = canvas.height / scale;
+                context.fillStyle = '#0b1116';
+                context.fillRect(0, 0, width, height);
+                context.fillStyle = '#13202a';
+                context.strokeStyle = 'rgba(72, 199, 244, 0.42)';
+                context.lineWidth = 2;
+                const boardSize = Math.min(width, height) * 0.72;
+                const left = (width - boardSize) / 2;
+                const top = (height - boardSize) / 2;
+                const cells = 8;
+                const cell = boardSize / cells;
+                for (let y = 0; y < cells; y += 1) {
+                    for (let x = 0; x < cells; x += 1) {
+                        context.fillStyle = (x + y) % 2 === 0 ? '#21313d' : '#182631';
+                        context.fillRect(left + x * cell, top + y * cell, cell, cell);
+                        context.strokeRect(left + x * cell, top + y * cell, cell, cell);
+                    }
+                }
+                const stones = [
+                    [3, 3, '#f6f7fb'], [4, 4, '#f6f7fb'],
+                    [3, 4, '#05070a'], [4, 3, '#05070a']
+                ];
+                for (const [x, y, color] of stones) {
+                    context.beginPath();
+                    context.arc(left + (x + 0.5) * cell, top + (y + 0.5) * cell, cell * 0.34, 0, Math.PI * 2);
+                    context.fillStyle = color;
+                    context.fill();
+                    context.strokeStyle = color === '#05070a' ? '#48c7f4' : '#f2c464';
+                    context.stroke();
+                }
+                context.fillStyle = '#e0f7ff';
+                context.font = '700 14px system-ui, sans-serif';
+                context.textAlign = 'center';
+                context.fillText('Fallback board shown while 3D renderer loads', width / 2, top + boardSize + 28);
+                if (status) {
+                    status.textContent = error
+                        ? '3D renderer did not start; showing fallback board.'
+                        : 'Loading 3D renderer... fallback board is visible.';
+                }
+                if (error) console.error(error);
+            }
+            window.drawReversiFallback = drawFallback;
+            window.setTimeout(() => {
+                if (!window.reversi3dApp) drawFallback();
+            }, 2600);
+        })();
+    </script>
     <script type="module" src="./js/main.js"></script>
 </body>
 </html>

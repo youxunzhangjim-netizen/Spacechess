@@ -67,22 +67,51 @@ try {
     await page.locator('.cell.legal').first().click();
     const reversiState = await page.evaluate(() => ({
         moveNumber: JSON.parse(document.querySelector('#exportText').value).moveNumber,
-        blackCount: document.querySelector('#blackCount')?.textContent
+        blackCount: document.querySelector('#blackCount')?.textContent,
+        physicalProblemOptions: [...document.querySelector('#physicalProblemSelect').options]
+            .filter((option) => !option.hidden && !option.disabled)
+            .map((option) => option.value)
     }));
     assert.equal(reversiState.moveNumber, 1, 'Expected a real pointer click to place a Clifford Reversi stone.');
     assert.equal(reversiState.blackCount, '4', 'Expected Clifford Reversi to flip one white stone.');
+    assert.deepEqual(reversiState.physicalProblemOptions, ['', 'ising_domain_wall_topology']);
+
+    await page.selectOption('#physicalProblemSelect', 'ising_domain_wall_topology');
+    const selectedIsingState = await page.evaluate(() => {
+        const exportState = JSON.parse(document.querySelector('#exportText').value);
+        return {
+            selectedProblem: document.querySelector('#physicalProblemSelect')?.value,
+            problemId: exportState.physicalProblem?.problemId
+        };
+    });
+    assert.equal(selectedIsingState.selectedProblem, 'ising_domain_wall_topology');
+    assert.equal(selectedIsingState.problemId, 'ising_domain_wall_topology', 'Visible Ising physical-problem selector should enable Ising export.');
 
     await page.selectOption('#modeSelect', 'anyon_jump');
     const anyonControlState = await page.evaluate(() => ({
         cliffordDisplay: getComputedStyle(document.querySelector('#cliffordAlgebraControls')).display,
         anyonDisplay: getComputedStyle(document.querySelector('#anyonAlgebraControls')).display,
         virasoroDisplay: getComputedStyle(document.querySelector('#virasoroAlgebraControls')).display,
-        rulesButton: document.querySelector('#rulesIntroButton')?.textContent
+        rulesButton: document.querySelector('#rulesIntroButton')?.textContent,
+        physicalProblemOptions: [...document.querySelector('#physicalProblemSelect').options]
+            .filter((option) => !option.hidden && !option.disabled)
+            .map((option) => option.value)
     }));
     assert.equal(anyonControlState.cliffordDisplay, 'none', 'Anyon mode should hide Clifford algebra controls.');
     assert.notEqual(anyonControlState.anyonDisplay, 'none', 'Anyon mode should show Anyon algebra controls.');
     assert.equal(anyonControlState.virasoroDisplay, 'none', 'Anyon mode should hide Virasoro algebra controls.');
     assert.equal(anyonControlState.rulesButton, 'Anyon Rules');
+    assert.deepEqual(anyonControlState.physicalProblemOptions, ['', 'toric_code_memory_unbraid']);
+    await page.selectOption('#physicalProblemSelect', 'toric_code_memory_unbraid');
+    const selectedToricState = await page.evaluate(() => {
+        const exportState = JSON.parse(document.querySelector('#exportText').value);
+        return {
+            selectedProblem: document.querySelector('#physicalProblemSelect')?.value,
+            problemId: exportState.physicalProblem?.problemId
+        };
+    });
+    assert.equal(selectedToricState.selectedProblem, 'toric_code_memory_unbraid');
+    assert.equal(selectedToricState.problemId, 'toric_code_memory_unbraid', 'Visible Toric physical-problem selector should enable toric export.');
     await page.locator('.anyon.black').first().locator('xpath=..').click();
     const selected = await page.evaluate(() => document.querySelectorAll('.cell.legal').length);
     assert.ok(selected > 0, 'Expected selecting an anyon to reveal legal jump-game actions.');
@@ -174,6 +203,9 @@ try {
         braidHidden: document.querySelector('#braidMemoryControl')?.hidden,
         braidDisplay: getComputedStyle(document.querySelector('#braidMemoryControl')).display,
         rulesButton: document.querySelector('#rulesIntroButton')?.textContent,
+        physicalProblemOptions: [...document.querySelector('#physicalProblemSelect').options]
+            .filter((option) => !option.hidden && !option.disabled)
+            .map((option) => option.value),
         rulesText: [...document.querySelectorAll('#rulesIntroPanel [data-rules-mode]:not([hidden])')]
             .map((node) => node.textContent || '')
             .join(' ')
@@ -189,6 +221,7 @@ try {
     assert.equal(fixedGoState.braidHidden, true, 'Virasoro Go should hide Anyon braid controls.');
     assert.equal(fixedGoState.braidDisplay, 'none', 'Hidden Anyon controls should not occupy layout space.');
     assert.equal(fixedGoState.rulesButton, 'Virasoro Rules');
+    assert.deepEqual(fixedGoState.physicalProblemOptions, [''], 'Virasoro Go should not show incompatible physical-problem wrappers.');
     assert.match(fixedGoState.rulesText, /Virasoro Go Rules/);
     await page.locator('#rulesIntroButton').click();
     const visibleVirasoroRules = await page.evaluate(() => ({

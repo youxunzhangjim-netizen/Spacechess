@@ -11,6 +11,8 @@ import { fusionChannelDisplay } from '../../js/anyon/NonabelianFusionMemory.js';
 const els = {
     modeSelect: document.querySelector('#modeSelect'),
     modeControl: document.querySelector('#modeControl'),
+    physicalProblemControl: document.querySelector('#physicalProblemControl'),
+    physicalProblemSelect: document.querySelector('#physicalProblemSelect'),
     topologySelect: document.querySelector('#topologySelect'),
     widthInput: document.querySelector('#widthInput'),
     heightInput: document.querySelector('#heightInput'),
@@ -115,7 +117,7 @@ const ANYON_SYMBOLS = {
 };
 const params = new URLSearchParams(window.location.search);
 const FIXED_MODE = normalizeMode(params.get('mode') || params.get('game') || params.get('algebraicMode'));
-const PHYSICAL_PROBLEM_ID = params.get('physicalProblem') || params.get('problemId') || '';
+const URL_PHYSICAL_PROBLEM_ID = params.get('physicalProblem') || params.get('problemId') || '';
 
 let game = null;
 let selectedToken = '';
@@ -128,6 +130,9 @@ if (FIXED_MODE) {
     els.modeSelect.disabled = true;
     document.body.dataset.fixedAlgebraicMode = FIXED_MODE;
 }
+if (URL_PHYSICAL_PROBLEM_ID && els.physicalProblemSelect) {
+    els.physicalProblemSelect.value = URL_PHYSICAL_PROBLEM_ID;
+}
 
 function normalizeMode(value) {
     if (value === 'anyon' || value === 'anyon_jump_chess') return 'anyon_jump';
@@ -138,6 +143,10 @@ function normalizeMode(value) {
 
 function selectedMode() {
     return normalizeMode(FIXED_MODE || els.modeSelect.value) || 'clifford_reversi';
+}
+
+function selectedPhysicalProblemId() {
+    return String(els.physicalProblemSelect?.value || '').trim();
 }
 
 function setAllowedSelectValues(select, allowedValues, fallback = 'off') {
@@ -162,6 +171,15 @@ function syncModeControls() {
     if (els.cliffordAlgebraControls) els.cliffordAlgebraControls.hidden = !isClifford;
     if (els.anyonAlgebraControls) els.anyonAlgebraControls.hidden = !isAnyon;
     if (els.virasoroAlgebraControls) els.virasoroAlgebraControls.hidden = !isVirasoroGo;
+    if (els.physicalProblemSelect) {
+        setAllowedSelectValues(
+            els.physicalProblemSelect,
+            isAnyon
+                ? ['', 'toric_code_memory_unbraid']
+                : isClifford ? ['', 'ising_domain_wall_topology'] : [''],
+            ''
+        );
+    }
 
     if (isVirasoroGo) {
         els.noiseModeSelect.value = 'off';
@@ -331,9 +349,10 @@ function anyonConfig() {
 
 function physicalProblemConfig(mode) {
     const topology = topologyConfig();
-    if (mode === 'anyon_jump' && PHYSICAL_PROBLEM_ID === 'toric_code_memory_unbraid') {
+    const physicalProblemId = selectedPhysicalProblemId();
+    if (mode === 'anyon_jump' && physicalProblemId === 'toric_code_memory_unbraid') {
         return {
-            id: PHYSICAL_PROBLEM_ID,
+            id: physicalProblemId,
             topology: params.get('problemTopology') || topology.topology,
             boardSize: Number(params.get('boardSize') || params.get('size') || topology.width),
             numPairsE: Number(params.get('numPairsE') || 2),
@@ -342,9 +361,9 @@ function physicalProblemConfig(mode) {
             enableTwistSeam: params.get('enableTwistSeam') !== 'false'
         };
     }
-    if (mode === 'clifford_reversi' && PHYSICAL_PROBLEM_ID === 'ising_domain_wall_topology') {
+    if (mode === 'clifford_reversi' && physicalProblemId === 'ising_domain_wall_topology') {
         return {
-            id: PHYSICAL_PROBLEM_ID,
+            id: physicalProblemId,
             topology: params.get('problemTopology') || topology.topology,
             boardSize: Number(params.get('boardSize') || params.get('size') || topology.width),
             J: Number(params.get('J') || 1),
@@ -1252,6 +1271,7 @@ for (const control of [
     els.captureRequiresUnbraidSelect,
     els.braidedPiecePenaltySelect,
     els.virasoroLayerSelect,
+    els.physicalProblemSelect,
     els.virasoroMaxModeSelect,
     els.unstableRuleSelect
 ]) {
