@@ -13,6 +13,10 @@ import {
 } from '../topology/GraphTopologies.js';
 import { ProbabilityEngine } from '../probability/ProbabilityEngine.js';
 import { FloquetEngine } from '../time/FloquetEngine.js';
+import {
+    createPhysicalProblem,
+    topologyOptionsForPhysicalProblem
+} from '../physics/PhysicalProblems.js';
 
 export const CLIFFORD_REVERSI_MODE = 'clifford_reversi';
 
@@ -48,7 +52,11 @@ export class CliffordReversiGame {
 
     reset(options = {}) {
         this.mode = CLIFFORD_REVERSI_MODE;
-        this.topology = createGraphTopology(options.topology || options);
+        const physicalProblemSource = options.physicalProblem || options.physicalProblemId || options.problemId || null;
+        const physicalProblemConfig = options.physicalProblemConfig || {};
+        const problemTopology = topologyOptionsForPhysicalProblem(physicalProblemSource, physicalProblemConfig);
+        this.physicalProblem = createPhysicalProblem(physicalProblemSource, physicalProblemConfig);
+        this.topology = createGraphTopology(problemTopology || options.topology || options);
         this.currentPlayer = options.currentPlayer || 'black';
         this.defaultFlipTransform = options.defaultFlipTransform || 'H';
         this.trackPhaseSigns = Boolean(options.trackPhaseSigns ?? options.config?.trackPhaseSigns);
@@ -63,7 +71,9 @@ export class CliffordReversiGame {
             game: this
         });
         this.setupInitialPosition();
+        this.physicalProblem?.setupInitialState?.(this);
         this.recordPosition('setup');
+        this.physicalProblem?.start?.(this);
     }
 
     setupInitialPosition() {
@@ -220,6 +230,7 @@ export class CliffordReversiGame {
         const preview = this.previewMove(coord, player, transform);
         if (!preview.legal) return { ok: false, error: 'Place a stone where it brackets at least one opponent chain.', preview };
 
+        const physicalBefore = this.physicalProblem?.beforeMove?.(this);
         this.setStone(preview.coord, { color: player, pauliLabel, pauliSign: options.pauliSign ?? 1 });
         for (const flip of preview.flips) this.board.set(flip.key, flip.after);
 
@@ -244,6 +255,16 @@ export class CliffordReversiGame {
                 .filter((edge) => edge.transport && edge.transport !== 'identity')
                 .map((edge) => ({ from: edge.from, to: edge.to, transport: edge.transport }))
         };
+        const physicalEntry = this.physicalProblem?.afterMove?.(this, { event, beforeState: physicalBefore });
+        if (physicalEntry) {
+            event.physicalProblem = {
+                deltaEnergy: physicalEntry.observables.deltaEnergy,
+                acceptedMove: physicalEntry.observables.acceptedMove,
+                metropolisProbability: physicalEntry.observables.metropolisProbability,
+                domainWallLength: physicalEntry.observables.domainWallLength,
+                twistedSector: physicalEntry.observables.twistedSector
+            };
+        }
         this.history.unshift(event);
         this.currentPlayer = otherPlayer(player);
         event.noise = this.maybeApplyNoise('after_move', player);
@@ -259,6 +280,7 @@ export class CliffordReversiGame {
         this.currentPlayer = otherPlayer(player);
         event.noise = this.maybeApplyNoise('after_move', player);
         event.time = this.maybeApplyTime('after_move', player);
+        this.physicalProblem?.record?.(this, { type: 'pass', event });
         this.recordPosition(event.time?.applied ? 'time' : 'pass');
         return { ok: true, event };
     }
@@ -285,6 +307,7 @@ export class CliffordReversiGame {
                 noiseEvents: events.length
             });
         }
+        if (events.length) this.physicalProblem?.record?.(this, { type: 'noise', event: { player, trigger, noiseEvents: events.length } });
         this.recordPosition('noise');
         return events;
     }
@@ -342,6 +365,7 @@ export class CliffordReversiGame {
             player,
             measurement
         });
+        this.physicalProblem?.record?.(this, { type: 'measurement', event: { player, measurement } });
         return { ok: true, measurement };
     }
 
@@ -377,7 +401,8 @@ export class CliffordReversiGame {
             history: this.history,
             positionHistory: this.positionHistory,
             probability: this.probability.exportState(),
-            time: this.time.exportState()
+            time: this.time.exportState(),
+            physicalProblem: this.physicalProblem?.export?.(this) || null
         };
     }
 }

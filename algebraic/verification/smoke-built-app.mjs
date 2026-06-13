@@ -126,6 +126,25 @@ try {
     assert.equal(physicalProblemState.numM, 2);
     assert.ok(physicalProblemState.answerLabel, 'Physical problem export should include an answer label.');
 
+    await page.goto(`http://127.0.0.1:${port}/?mode=clifford_reversi&physicalProblem=ising_domain_wall_topology&problemTopology=torus&boardSize=4&initialState=checkerboard`, { waitUntil: 'networkidle' });
+    const isingProblemState = await page.evaluate(() => {
+        const exportState = JSON.parse(document.querySelector('#exportText').value);
+        return {
+            mode: exportState.mode,
+            problemId: exportState.physicalProblem?.problemId,
+            energy: exportState.physicalProblem?.initialObservables?.energy,
+            domainWallDensity: exportState.physicalProblem?.initialObservables?.domainWallDensity,
+            answerLabel: exportState.physicalProblem?.answer?.topologyEffectLabel,
+            summary: exportState.physicalProblem?.answer?.summary
+        };
+    });
+    assert.equal(isingProblemState.mode, 'clifford_reversi');
+    assert.equal(isingProblemState.problemId, 'ising_domain_wall_topology');
+    assert.equal(isingProblemState.energy, 32);
+    assert.equal(isingProblemState.domainWallDensity, 1);
+    assert.equal(isingProblemState.answerLabel, 'disordered');
+    assert.match(isingProblemState.summary, /Ising-Reversi game/);
+
     await page.goto(`http://127.0.0.1:${port}/?mode=virasoro_go`, { waitUntil: 'networkidle' });
     const fixedGoState = await page.evaluate(() => ({
         title: document.querySelector('#modeTitle')?.textContent,
@@ -157,7 +176,7 @@ try {
     assert.equal(goState.historyType, 'virasoro');
     assert.ok(goState.stressCount > 0, 'Expected L0 to create stress on Go liberties.');
     assert.equal(logs.some((line) => line.startsWith('pageerror')), false, logs.join('\n'));
-    console.log(JSON.stringify({ state, rulesVisible: rulesState.visible, reversiState, anyonState, fixedAnyonState, physicalProblemState, fixedGoState, goState, logs }, null, 2));
+    console.log(JSON.stringify({ state, rulesVisible: rulesState.visible, reversiState, anyonState, fixedAnyonState, physicalProblemState, isingProblemState, fixedGoState, goState, logs }, null, 2));
 } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

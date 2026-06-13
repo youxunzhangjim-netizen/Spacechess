@@ -3,9 +3,15 @@ import {
     TORIC_CODE_MEMORY_UNBRAID_ID,
     topologyOptionsForToricCodeMemoryUnbraid
 } from './ToricCodeMemoryUnbraidProblem.js';
+import {
+    createIsingDomainWallTopologyProblem,
+    ISING_DOMAIN_WALL_TOPOLOGY_ID,
+    topologyOptionsForIsingDomainWallTopology
+} from './IsingDomainWallTopologyProblem.js';
 
 export const PHYSICAL_PROBLEM_IDS = Object.freeze([
-    TORIC_CODE_MEMORY_UNBRAID_ID
+    TORIC_CODE_MEMORY_UNBRAID_ID,
+    ISING_DOMAIN_WALL_TOPOLOGY_ID
 ]);
 
 export function normalizePhysicalProblemId(value = '') {
@@ -19,6 +25,9 @@ export function createPhysicalProblem(problem = null, config = {}) {
     if (id === TORIC_CODE_MEMORY_UNBRAID_ID) {
         return createToricCodeMemoryUnbraidProblem({ ...source, ...config });
     }
+    if (id === ISING_DOMAIN_WALL_TOPOLOGY_ID) {
+        return createIsingDomainWallTopologyProblem({ ...source, ...config });
+    }
     return null;
 }
 
@@ -28,7 +37,11 @@ export function topologyOptionsForPhysicalProblem(problem = null, config = {}) {
     if (id === TORIC_CODE_MEMORY_UNBRAID_ID) {
         return topologyOptionsForToricCodeMemoryUnbraid({ ...source, ...config });
     }
+    if (id === ISING_DOMAIN_WALL_TOPOLOGY_ID) {
+        return topologyOptionsForIsingDomainWallTopology({ ...source, ...config });
+    }
     return null;
 }
 
 export { TORIC_CODE_MEMORY_UNBRAID_ID } from './ToricCodeMemoryUnbraidProblem.js';
+export { ISING_DOMAIN_WALL_TOPOLOGY_ID } from './IsingDomainWallTopologyProblem.js';

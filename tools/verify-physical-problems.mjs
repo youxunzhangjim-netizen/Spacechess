@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { AnyonJumpGame } from '../js/localgames/AnyonJump.js';
+import { CliffordReversiGame } from '../js/localgames/CliffordReversi.js';
 import { nextRequiredUnbraidGenerator } from '../js/anyon/BraidMemory.js';
 import {
     calculateToricCodeMemoryUnbraidAnswer,
@@ -7,6 +8,16 @@ import {
     TORIC_CODE_MEMORY_UNBRAID_ID,
     topologyOptionsForToricCodeMemoryUnbraid
 } from '../js/physics/ToricCodeMemoryUnbraidProblem.js';
+import {
+    calculateIsingDomainWallTopologyAnswer,
+    computeIsingDomainWallObservables,
+    ISING_DOMAIN_WALL_TOPOLOGY_ID,
+    topologyOptionsForIsingDomainWallTopology
+} from '../js/physics/IsingDomainWallTopologyProblem.js';
+import {
+    createPhysicalProblem,
+    normalizePhysicalProblemId
+} from '../js/physics/PhysicalProblems.js';
 
 const topologyOptions = topologyOptionsForToricCodeMemoryUnbraid({
     topology: 'RP2',
@@ -87,5 +98,66 @@ const answer = calculateToricCodeMemoryUnbraidAnswer({
 });
 assert.equal(answer.logicalErrorOccurred, false);
 assert.equal(answer.finalTotalCharge, 'psi');
+
+assert.equal(normalizePhysicalProblemId(ISING_DOMAIN_WALL_TOPOLOGY_ID), ISING_DOMAIN_WALL_TOPOLOGY_ID);
+assert.equal(createPhysicalProblem({ id: ISING_DOMAIN_WALL_TOPOLOGY_ID }).id, ISING_DOMAIN_WALL_TOPOLOGY_ID);
+
+const isingTopologyOptions = topologyOptionsForIsingDomainWallTopology({
+    topology: 'sphere',
+    boardSize: 7
+});
+assert.equal(isingTopologyOptions.topology, 'sphere_latitude', 'S2 topology is normalized to the latitude-ring graph.');
+assert.equal(isingTopologyOptions.width, 7);
+assert.equal(isingTopologyOptions.height, 7);
+
+const checkerboardIsing = new CliffordReversiGame({
+    physicalProblem: {
+        id: ISING_DOMAIN_WALL_TOPOLOGY_ID,
+        topology: 'torus',
+        boardSize: 4,
+        initialState: 'checkerboard',
+        J: 1
+    }
+});
+const checkerExport = checkerboardIsing.exportState().physicalProblem;
+assert.equal(checkerExport.problemId, ISING_DOMAIN_WALL_TOPOLOGY_ID);
+assert.equal(checkerExport.config.topology, 'torus');
+assert.equal(checkerExport.initialObservables.numberOfSpins, 16);
+assert.equal(checkerExport.initialObservables.numberOfEdges, 32, '4x4 torus has 32 undirected axis edges.');
+assert.equal(checkerExport.initialObservables.domainWallLength, 32, 'Checkerboard on a torus makes every edge a domain wall.');
+assert.equal(checkerExport.initialObservables.domainWallDensity, 1);
+assert.equal(checkerExport.initialObservables.energy, 32);
+assert.equal(checkerExport.initialObservables.magnetization, 0);
+assert.equal(checkerExport.answer.topologyEffectLabel, 'disordered');
+
+const isingMoveGame = new CliffordReversiGame({
+    topology: { topology: 'torus', width: 8, height: 8 },
+    physicalProblem: {
+        id: ISING_DOMAIN_WALL_TOPOLOGY_ID,
+        topology: 'torus',
+        boardSize: 8,
+        initialState: 'infer_current',
+        J: 1
+    }
+});
+const legalIsingMove = isingMoveGame.legalMoves()[0];
+assert.ok(legalIsingMove, 'Default Clifford Reversi setup should have a legal Ising-Reversi move.');
+const isingMove = isingMoveGame.place(legalIsingMove.coord);
+assert.equal(isingMove.ok, true, 'Ising-Reversi physical problem should not block normal Reversi moves by default.');
+assert.equal(typeof isingMove.event.physicalProblem.deltaEnergy, 'number');
+const isingMoveExport = isingMoveGame.exportState().physicalProblem;
+assert.equal(isingMoveExport.fullHistory.length >= 2, true, 'Ising problem records initial and move observations.');
+assert.equal(typeof isingMoveExport.finalObservables.energy, 'number');
+assert.ok(isingMoveExport.answer.summary.includes('Ising-Reversi game'));
+
+const directObservables = computeIsingDomainWallObservables(checkerboardIsing, checkerExport.config);
+assert.equal(directObservables.domainWallLength, 32);
+const directAnswer = calculateIsingDomainWallTopologyAnswer({
+    config: checkerExport.config,
+    initialObservables: checkerExport.initialObservables,
+    finalObservables: directObservables,
+    history: checkerExport.fullHistory
+});
+assert.equal(directAnswer.disorderedStateReached, true);
 
 console.log('Physical problem verification passed.');

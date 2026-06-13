@@ -319,17 +319,33 @@ function anyonConfig() {
 }
 
 function physicalProblemConfig(mode) {
-    if (mode !== 'anyon_jump' || PHYSICAL_PROBLEM_ID !== 'toric_code_memory_unbraid') return null;
     const topology = topologyConfig();
-    return {
-        id: PHYSICAL_PROBLEM_ID,
-        topology: params.get('problemTopology') || topology.topology,
-        boardSize: Number(params.get('boardSize') || params.get('size') || topology.width),
-        numPairsE: Number(params.get('numPairsE') || 2),
-        numPairsM: Number(params.get('numPairsM') || 2),
-        createPairsLocally: params.get('createPairsLocally') !== 'false',
-        enableTwistSeam: params.get('enableTwistSeam') !== 'false'
-    };
+    if (mode === 'anyon_jump' && PHYSICAL_PROBLEM_ID === 'toric_code_memory_unbraid') {
+        return {
+            id: PHYSICAL_PROBLEM_ID,
+            topology: params.get('problemTopology') || topology.topology,
+            boardSize: Number(params.get('boardSize') || params.get('size') || topology.width),
+            numPairsE: Number(params.get('numPairsE') || 2),
+            numPairsM: Number(params.get('numPairsM') || 2),
+            createPairsLocally: params.get('createPairsLocally') !== 'false',
+            enableTwistSeam: params.get('enableTwistSeam') !== 'false'
+        };
+    }
+    if (mode === 'clifford_reversi' && PHYSICAL_PROBLEM_ID === 'ising_domain_wall_topology') {
+        return {
+            id: PHYSICAL_PROBLEM_ID,
+            topology: params.get('problemTopology') || topology.topology,
+            boardSize: Number(params.get('boardSize') || params.get('size') || topology.width),
+            J: Number(params.get('J') || 1),
+            temperature: Number(params.get('temperature') || 0),
+            enableMetropolis: params.get('enableMetropolis') === 'true',
+            enableFloquetJ: params.get('enableFloquetJ') === 'true',
+            initialState: params.get('initialState') || 'infer_current',
+            stableWallTurns: Number(params.get('stableWallTurns') || params.get('K') || 5),
+            seed: params.get('seed') || 'ising-domain-wall'
+        };
+    }
+    return null;
 }
 
 function createGame() {
@@ -340,7 +356,7 @@ function createGame() {
     lastWrongUnbraid = null;
     const config = anyonConfig();
     const physicalProblem = physicalProblemConfig(mode);
-    if (physicalProblem) {
+    if (physicalProblem?.id === 'toric_code_memory_unbraid') {
         config.anyonModel = 'toric_code';
         config.braidEffect = 'add_braid_token';
     }

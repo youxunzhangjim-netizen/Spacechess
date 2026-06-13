@@ -1,4 +1,5 @@
 import { SeededRandom } from '../probability/SeededRandom.js';
+import { createPhysicalProblem } from '../physics/PhysicalProblems.js';
 
 export const REVERSI_COLORS = {
     BLACK: 'black',
@@ -219,6 +220,9 @@ export class ReversiGame {
     }
 
     reset(options = {}) {
+        const physicalProblemSource = options.physicalProblem || options.physicalProblemId || options.problemId || null;
+        const physicalProblemConfig = options.physicalProblemConfig || {};
+        this.physicalProblem = createPhysicalProblem(physicalProblemSource, physicalProblemConfig);
         this.topology = createReversiTopology(options);
         this.board = new Map();
         this.currentPlayer = REVERSI_COLORS.BLACK;
@@ -227,6 +231,8 @@ export class ReversiGame {
         this.moveHistory = [];
         this.lastFlipped = [];
         this.placeInitialStones();
+        this.physicalProblem?.setupInitialState?.(this);
+        this.physicalProblem?.start?.(this);
     }
 
     placeInitialStones() {
@@ -330,25 +336,40 @@ export class ReversiGame {
         const flips = this.previewMove(normalized, color);
         if (!flips.length) return { ok: false, reason: 'illegal' };
 
+        const physicalBefore = this.physicalProblem?.beforeMove?.(this);
         this.set(normalized, { color });
         for (const flip of flips) this.set(flip, { color });
         this.lastFlipped = flips.map((flip) => this.key(flip));
-        this.moveHistory.unshift({
+        const event = {
             type: 'move',
             number: this.moveHistory.filter((entry) => entry.type === 'move').length + 1,
             color,
             coord: normalized,
             flipped: flips.length
-        });
+        };
+        const physicalEntry = this.physicalProblem?.afterMove?.(this, { event, beforeState: physicalBefore });
+        if (physicalEntry) {
+            event.physicalProblem = {
+                deltaEnergy: physicalEntry.observables.deltaEnergy,
+                acceptedMove: physicalEntry.observables.acceptedMove,
+                metropolisProbability: physicalEntry.observables.metropolisProbability,
+                domainWallLength: physicalEntry.observables.domainWallLength,
+                twistedSector: physicalEntry.observables.twistedSector
+            };
+            if (physicalEntry.observables.acceptedMove === false) this.lastFlipped = [];
+        }
+        this.moveHistory.unshift(event);
         this.advanceTurn(color);
-        return { ok: true, coord: normalized, flipped: flips.length };
+        return { ok: true, coord: normalized, flipped: flips.length, physicalProblem: event.physicalProblem || null };
     }
 
     pass() {
         if (this.gameOver) return { ok: false, reason: 'game-over' };
         if (this.legalMoves(this.currentPlayer).length) return { ok: false, reason: 'legal-moves' };
         const color = this.currentPlayer;
-        this.moveHistory.unshift({ type: 'no-move-end', color, automatic: false });
+        const event = { type: 'no-move-end', color, automatic: false };
+        this.moveHistory.unshift(event);
+        this.physicalProblem?.record?.(this, { type: 'pass', event });
         this.finishGame();
         return { ok: true };
     }
@@ -369,6 +390,7 @@ export class ReversiGame {
         this.winner = counts.black === counts.white
             ? 'draw'
             : counts.black > counts.white ? REVERSI_COLORS.BLACK : REVERSI_COLORS.WHITE;
+        this.physicalProblem?.record?.(this, { type: 'finish', event: { winner: this.winner, counts } });
     }
 
     counts() {
@@ -395,7 +417,8 @@ export class ReversiGame {
             winner: this.winner,
             board: [...this.board.entries()],
             moveHistory: this.moveHistory,
-            lastFlipped: this.lastFlipped
+            lastFlipped: this.lastFlipped,
+            physicalProblem: this.physicalProblem?.export?.(this) || null
         };
     }
 
