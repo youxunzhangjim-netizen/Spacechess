@@ -353,6 +353,35 @@ h2 {
     aspect-ratio: 1;
 }
 
+.interactive-board-shell {
+    position: relative;
+    width: 100%;
+    min-height: 520px;
+}
+
+.algebraic-3d-board {
+    display: block;
+    width: 100%;
+    height: min(72vh, 820px);
+    min-height: 560px;
+    background: #091016;
+    border: 1px solid rgba(79, 137, 164, 0.42);
+    border-radius: 6px;
+    touch-action: none;
+}
+
+.reset-3d-camera {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 4;
+    width: auto;
+    min-width: 116px;
+    padding: 8px 12px;
+    background: rgba(11, 17, 23, 0.9);
+    backdrop-filter: blur(8px);
+}
+
 .cell {
     position: relative;
     min-width: 0;

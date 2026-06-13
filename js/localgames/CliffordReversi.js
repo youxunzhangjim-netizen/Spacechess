@@ -78,6 +78,16 @@ export class CliffordReversiGame {
 
     setupInitialPosition() {
         const sizes = this.topology.sizes;
+        if (this.topology.dimensions === 3) {
+            const x = Math.max(1, Math.floor(sizes[0] / 2) - 1);
+            const y = Math.max(1, Math.floor(sizes[1] / 2) - 1);
+            const z = Math.floor(sizes[2] / 2);
+            this.setStone([x, y, z], { color: 'white', pauliLabel: 'X' });
+            this.setStone([x + 1, y + 1, z], { color: 'white', pauliLabel: 'Z' });
+            this.setStone([x + 1, y, z], { color: 'black', pauliLabel: 'Y' });
+            this.setStone([x, y + 1, z], { color: 'black', pauliLabel: 'X' });
+            return;
+        }
         if (this.topology.dimensions === 4) {
             const x = Math.max(1, Math.floor(sizes[0] / 2) - 1);
             const y = Math.max(1, Math.floor(sizes[1] / 2) - 1);

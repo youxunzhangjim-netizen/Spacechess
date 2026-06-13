@@ -77,6 +77,68 @@ try {
     assert.equal(randomBoundaryState.topology, 'random_boundary');
     assert.match(randomBoundaryState.hint, /2D RBC|random boundary/i);
 
+    await page.selectOption('#topologySelect', 'torus');
+    const torus3DState = await page.evaluate(() => ({
+        canvasVisible: !document.querySelector('#algebraic3dBoard')?.hidden,
+        flatBoardHidden: document.querySelector('#board')?.hidden,
+        width: document.querySelector('#algebraic3dBoard')?.width || 0,
+        height: document.querySelector('#algebraic3dBoard')?.height || 0,
+        topology: JSON.parse(document.querySelector('#exportText').value).topology?.name,
+        rules: document.querySelector('[data-rules-mode="clifford"]')?.textContent || ''
+    }));
+    assert.equal(torus3DState.canvasVisible, true, 'T2 algebraic games should use the interactive 3D canvas.');
+    assert.equal(torus3DState.flatBoardHidden, true, 'The projected 2D board should hide for a 3D topology view.');
+    assert.ok(torus3DState.width > 300 && torus3DState.height > 300, 'The T2 WebGL canvas should have a usable size.');
+    assert.equal(torus3DState.topology, 'torus');
+    assert.match(torus3DState.rules, /solid torus/i);
+
+    await page.selectOption('#topologySelect', 'r3');
+    const r3State = await page.evaluate(() => {
+        const exportState = JSON.parse(document.querySelector('#exportText').value);
+        return {
+            canvasVisible: !document.querySelector('#algebraic3dBoard')?.hidden,
+            topology: exportState.topology?.name,
+            dimensions: exportState.topology?.dimensions,
+            hint: document.querySelector('#topologyHint')?.textContent || ''
+        };
+    });
+    assert.equal(r3State.canvasVisible, true, 'R3 algebraic games should use the interactive 3D canvas.');
+    assert.equal(r3State.topology, 'r3');
+    assert.equal(r3State.dimensions, 3);
+    assert.match(r3State.hint, /six axis-neighbors/i);
+    const projectedLegalMove = await page.evaluate(() => {
+        const view = window.algebraic3dBoard;
+        const index = view.pointCoords.findIndex((coord) => view.viewState.legalKeys.has(coord.join(',')));
+        const point = view.pointPositions[index].clone().project(view.camera);
+        const rect = view.canvas.getBoundingClientRect();
+        return {
+            x: (point.x + 1) * rect.width / 2,
+            y: (1 - point.y) * rect.height / 2,
+            camera: view.camera.position.toArray()
+        };
+    });
+    await page.locator('#algebraic3dBoard').click({
+        position: { x: projectedLegalMove.x, y: projectedLegalMove.y }
+    });
+    const r3MoveState = await page.evaluate((before) => {
+        const exportState = JSON.parse(document.querySelector('#exportText').value);
+        const after = window.algebraic3dBoard.camera.position.toArray();
+        return {
+            moveNumber: exportState.moveNumber,
+            cameraDelta: Math.hypot(...after.map((value, index) => value - before.camera[index]))
+        };
+    }, projectedLegalMove);
+    assert.equal(r3MoveState.moveNumber, 1, 'Clicking a projected legal R3 vertex should make a real move.');
+    assert.equal(r3MoveState.cameraDelta, 0, 'Placing on the 3D algebraic board should not move the camera.');
+
+    await page.selectOption('#topologySelect', 'sphere_latitude');
+    assert.equal(
+        await page.locator('#algebraic3dBoard').evaluate((canvas) => !canvas.hidden),
+        true,
+        'S2 algebraic games should use the interactive 3D canvas.'
+    );
+    await page.selectOption('#topologySelect', 'flat');
+
     await page.locator('.cell.legal').first().click();
     const reversiState = await page.evaluate(() => ({
         moveNumber: JSON.parse(document.querySelector('#exportText').value).moveNumber,
@@ -115,16 +177,6 @@ try {
     assert.equal(anyonControlState.virasoroDisplay, 'none', 'Anyon mode should hide Virasoro algebra controls.');
     assert.equal(anyonControlState.rulesButton, 'Anyon Rules');
     assert.deepEqual(anyonControlState.physicalProblemOptions, ['', 'toric_code_memory_unbraid']);
-    await page.selectOption('#physicalProblemSelect', 'toric_code_memory_unbraid');
-    const selectedToricState = await page.evaluate(() => {
-        const exportState = JSON.parse(document.querySelector('#exportText').value);
-        return {
-            selectedProblem: document.querySelector('#physicalProblemSelect')?.value,
-            problemId: exportState.physicalProblem?.problemId
-        };
-    });
-    assert.equal(selectedToricState.selectedProblem, 'toric_code_memory_unbraid');
-    assert.equal(selectedToricState.problemId, 'toric_code_memory_unbraid', 'Visible Toric physical-problem selector should enable toric export.');
     await page.locator('.anyon.black').first().locator('xpath=..').click();
     const selected = await page.evaluate(() => document.querySelectorAll('.cell.legal').length);
     assert.ok(selected > 0, 'Expected selecting an anyon to reveal legal jump-game actions.');
@@ -135,6 +187,17 @@ try {
     }));
     assert.equal(anyonState.mode, 'anyon_jump');
     assert.equal(anyonState.moveNumber, 1, 'Expected a real pointer click to move an anyon.');
+
+    await page.selectOption('#physicalProblemSelect', 'toric_code_memory_unbraid');
+    const selectedToricState = await page.evaluate(() => {
+        const exportState = JSON.parse(document.querySelector('#exportText').value);
+        return {
+            selectedProblem: document.querySelector('#physicalProblemSelect')?.value,
+            problemId: exportState.physicalProblem?.problemId
+        };
+    });
+    assert.equal(selectedToricState.selectedProblem, 'toric_code_memory_unbraid');
+    assert.equal(selectedToricState.problemId, 'toric_code_memory_unbraid', 'Visible Toric physical-problem selector should enable toric export.');
 
     await page.goto(`http://127.0.0.1:${port}/?mode=anyon_jump`, { waitUntil: 'networkidle' });
     const fixedAnyonState = await page.evaluate(() => ({

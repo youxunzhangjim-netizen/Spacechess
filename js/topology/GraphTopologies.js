@@ -8,6 +8,7 @@ const TOPOLOGY_NAMES = Object.freeze([
     'klein_bottle',
     'rp2',
     'sphere_latitude',
+    'r3',
     'flat_4d_grid'
 ]);
 
@@ -54,6 +55,25 @@ const AXIS_4D = Object.freeze([
     Object.freeze([0, 0, 0, 1]),
     Object.freeze([0, 0, 0, -1])
 ]);
+
+const AXIS_3D = Object.freeze([
+    Object.freeze([1, 0, 0]),
+    Object.freeze([-1, 0, 0]),
+    Object.freeze([0, 1, 0]),
+    Object.freeze([0, -1, 0]),
+    Object.freeze([0, 0, 1]),
+    Object.freeze([0, 0, -1])
+]);
+
+const RAYS_3D = Object.freeze(
+    [-1, 0, 1].flatMap((dx) =>
+        [-1, 0, 1].flatMap((dy) =>
+            [-1, 0, 1]
+                .filter((dz) => dx !== 0 || dy !== 0 || dz !== 0)
+                .map((dz) => Object.freeze([dx, dy, dz]))
+        )
+    )
+);
 
 function integer(value, fallback, min = 1, max = 64) {
     const parsed = Math.floor(Number(value));
@@ -475,8 +495,90 @@ function create4DTopology(config) {
     };
 }
 
+function create3DTopology(config) {
+    const width = integer(config.width ?? config.nx, 8, 2, 19);
+    const height = integer(config.height ?? config.ny, width, 2, 19);
+    const depth = integer(config.depth ?? config.nz, width, 2, 19);
+    const sizes = [width, height, depth];
+    return {
+        name: 'r3',
+        dimensions: 3,
+        sizes,
+        width,
+        height,
+        depth,
+        lattice: 'cubic',
+        maxRaySteps: width * height * depth + 4,
+        normalize(coord) {
+            return inside(coord, sizes) ? [...coord] : null;
+        },
+        contains(coord) {
+            return inside(coord, sizes);
+        },
+        key: keyOf,
+        same: sameCoord,
+        vertices() {
+            return enumerateVertices(sizes);
+        },
+        directions() {
+            return AXIS_3D.map((direction) => [...direction]);
+        },
+        rayDirections() {
+            return RAYS_3D.map((direction) => [...direction]);
+        },
+        step(fromCoord, direction) {
+            const from = this.normalize(fromCoord);
+            if (!from) return null;
+            const rawTo = addCoord(from, direction);
+            const to = this.normalize(rawTo);
+            if (!to) return null;
+            return {
+                coord: to,
+                edge: makeEdge({
+                    topology: this.name,
+                    from,
+                    rawTo,
+                    to,
+                    direction,
+                    wrap: {},
+                    twisted: false
+                })
+            };
+        },
+        neighbors(coord) {
+            return this.directions()
+                .map((direction) => this.step(coord, direction)?.coord)
+                .filter(Boolean);
+        },
+        edgeTransport() {
+            return 'identity';
+        },
+        seamTransform() {
+            return 'identity';
+        },
+        homologyCycleCrossing() {
+            return { x: 0, y: 0, z: 0, w: 0 };
+        },
+        edgeWrapInfo() {
+            return { wrapX: 0, wrapY: 0, wrapZ: 0, wrapW: 0, twisted: false };
+        },
+        detectLocalEncirclement() {
+            return false;
+        },
+        displayCoord(coord) {
+            return `(${coord[0]},${coord[1]},${coord[2]})`;
+        },
+        seamSummary() {
+            return 'R3 standard cubic graph: six axis-neighbors for local moves and 26 spatial rays for Reversi brackets.';
+        }
+    };
+}
+
 export function createGraphTopology(options = {}) {
     const topology = String(options.topology || options.name || 'torus').toLowerCase();
+    if (topology === 'r3' || topology === '3d' || topology === 'flat_3d_grid') {
+        return create3DTopology({ ...options, topology: 'r3' });
+    }
     if (topology === 'flat_4d' || topology === 'flat_4d_go' || topology === '4d' || topology === 'flat_4d_grid') {
         return create4DTopology({ ...options, topology: 'flat_4d_grid' });
     }

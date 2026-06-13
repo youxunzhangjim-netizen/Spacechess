@@ -46,6 +46,12 @@ const triangularRandom = createGraphTopology({
     randomBoundarySeed: 'triangular-random-boundary'
 });
 assert.ok(triangularRandom.step([2, 0], [1, -1])?.coord, 'Triangular RBC maps exposed diagonal edges.');
+const r3 = createGraphTopology({ topology: 'r3', width: 5, height: 6, depth: 7 });
+assert.equal(r3.dimensions, 3, 'R3 topology is a true three-dimensional graph.');
+assert.deepEqual(r3.sizes, [5, 6, 7]);
+assert.equal(r3.neighbors([2, 2, 2]).length, 6, 'R3 interior vertices have six axis-neighbors.');
+assert.equal(r3.rayDirections().length, 26, 'R3 Reversi exposes all 26 spatial rays.');
+assert.equal(r3.normalize([-1, 2, 2]), null, 'R3 uses standard finite boundaries.');
 
 const reversi = new CliffordReversiGame({ topology: { topology: 'torus', width: 8, height: 8 } });
 const preview = reversi.previewMove([2, 3], 'black', 'H');
@@ -70,6 +76,11 @@ const randomReversi = new CliffordReversiGame({
 });
 assert.equal(randomReversi.topology.name, 'random_boundary', 'Clifford Reversi supports random boundary topology.');
 assert.ok(randomReversi.legalMoves('black', 'H').length > 0, 'Random-boundary Clifford Reversi has legal opening moves.');
+const r3Reversi = new CliffordReversiGame({
+    topology: { topology: 'r3', width: 6, height: 6, depth: 6 }
+});
+assert.equal(r3Reversi.topology.dimensions, 3);
+assert.ok(r3Reversi.legalMoves('black', 'H').length > 0, 'R3 Clifford Reversi has legal opening moves.');
 
 const signedReversi = new CliffordReversiGame({
     topology: { topology: 'torus', width: 8, height: 8 },

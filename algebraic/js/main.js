@@ -7,6 +7,7 @@ import {
     requiredInverseBraidWordText
 } from '../../js/anyon/BraidMemory.js';
 import { fusionChannelDisplay } from '../../js/anyon/NonabelianFusionMemory.js';
+import { Algebraic3DBoard, usesAlgebraic3DView } from './Algebraic3DBoard.js';
 
 const els = {
     modeSelect: document.querySelector('#modeSelect'),
@@ -96,6 +97,8 @@ const els = {
     modeTitle: document.querySelector('#modeTitle'),
     topologyHint: document.querySelector('#topologyHint'),
     board: document.querySelector('#board'),
+    algebraic3dBoard: document.querySelector('#algebraic3dBoard'),
+    reset3dCameraButton: document.querySelector('#reset3dCameraButton'),
     blackCount: document.querySelector('#blackCount'),
     whiteCount: document.querySelector('#whiteCount'),
     blackBraid: document.querySelector('#blackBraid'),
@@ -135,6 +138,22 @@ let selectedToken = '';
 let hoverCoord = null;
 let lastCancellation = null;
 let lastWrongUnbraid = null;
+let legalReversiCache = { signature: '', keys: [] };
+const algebraic3d = new Algebraic3DBoard({
+    canvas: els.algebraic3dBoard,
+    resetButton: els.reset3dCameraButton,
+    onHover(coord) {
+        hoverCoord = coord;
+        if (game && usesAlgebraic3DView(game.topology.name)) {
+            renderAlgebraic3DBoard();
+            updateStatus();
+        }
+    },
+    onSelect(coord) {
+        handleCellClick(coord);
+    }
+});
+window.algebraic3dBoard = algebraic3d;
 
 if (FIXED_MODE) {
     els.modeSelect.value = FIXED_MODE;
@@ -257,6 +276,8 @@ function syncModeControls() {
         els.virasoroDirectionSelect,
         els.topologySelect.value === 'flat_4d_grid'
             ? ['1,0', '-1,0', '0,1', '0,-1', '0,0,1,0', '0,0,-1,0', '0,0,0,1', '0,0,0,-1']
+            : els.topologySelect.value === 'r3'
+                ? ['1,0', '-1,0', '0,1', '0,-1', '0,0,1,0', '0,0,-1,0']
             : els.latticeSelect.value === 'triangular'
                 ? ['1,0', '-1,0', '0,1', '0,-1', '1,-1', '-1,1']
                 : ['1,0', '-1,0', '0,1', '0,-1'],
@@ -280,12 +301,12 @@ function syncModeControls() {
 function topologyConfig() {
     const topology = els.topologySelect.value;
     const selectedLattice = els.latticeSelect?.value || 'square';
-    const lattice = topology === 'flat_4d_grid'
+    const lattice = topology === 'flat_4d_grid' || topology === 'r3'
         ? 'square'
         : selectedMode() === 'clifford_reversi' && selectedLattice === 'honeycomb'
             ? 'hex_cells'
             : selectedLattice;
-    if (els.latticeControl) els.latticeControl.hidden = topology === 'flat_4d_grid';
+    if (els.latticeControl) els.latticeControl.hidden = topology === 'flat_4d_grid' || topology === 'r3';
     return {
         topology,
         lattice,
@@ -294,6 +315,7 @@ function topologyConfig() {
         nx: Number(els.widthInput.value),
         ny: Number(els.heightInput.value),
         nz: Number(els.zSizeInput.value),
+        depth: Number(els.zSizeInput.value),
         nw: Number(els.wSizeInput.value)
     };
 }
@@ -323,6 +345,9 @@ function centerCoord(offsetX = 0, offsetY = 0) {
             Math.floor(Number(els.zSizeInput.value) / 2),
             Math.floor(Number(els.wSizeInput.value) / 2)
         ];
+    }
+    if (config.topology === 'r3') {
+        return [x, y, Math.floor(Number(els.zSizeInput.value) / 2)];
     }
     return [x, y];
 }
@@ -364,6 +389,9 @@ function selectedDirection() {
     const parts = String(els.virasoroDirectionSelect.value || '1,0').split(',').map(Number);
     if (els.topologySelect.value === 'flat_4d_grid') {
         return [parts[0] || 0, parts[1] || 0, parts[2] || 0, parts[3] || 0];
+    }
+    if (els.topologySelect.value === 'r3') {
+        return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
     }
     return [parts[0] || 0, parts[1] || 0];
 }
@@ -435,6 +463,7 @@ function createGame() {
     hoverCoord = null;
     lastCancellation = null;
     lastWrongUnbraid = null;
+    legalReversiCache = { signature: '', keys: [] };
     const config = anyonConfig();
     const physicalProblem = physicalProblemConfig(mode);
     if (physicalProblem?.id === 'toric_code_memory_unbraid') {
@@ -595,10 +624,11 @@ function render() {
     els.currentPlayer.textContent = capitalize(game.currentPlayer);
     els.topologyHint.textContent = game.topology.seamSummary();
     const is4D = els.topologySelect.value === 'flat_4d_grid';
+    const isR3 = els.topologySelect.value === 'r3';
     const noiseEnabled = els.noiseModeSelect.value !== 'off';
     const timeEnabled = els.floquetModeSelect.value !== 'off';
-    els.geometryDetails.hidden = !is4D;
-    els.zSizeControl.hidden = !is4D;
+    els.geometryDetails.hidden = !is4D && !isR3;
+    els.zSizeControl.hidden = !is4D && !isR3;
     els.wSizeControl.hidden = !is4D;
     els.noiseDetails.hidden = !noiseEnabled;
     els.timeDetails.hidden = !timeEnabled;
@@ -618,6 +648,15 @@ function render() {
 }
 
 function renderBoard() {
+    if (usesAlgebraic3DView(game.topology.name)) {
+        els.board.hidden = true;
+        algebraic3d.setVisible(true);
+        renderAlgebraic3DBoard();
+        updateStatus();
+        return;
+    }
+    algebraic3d.setVisible(false);
+    els.board.hidden = false;
     const [width, height] = game.topology.sizes;
     const honeycombNodes = game.topology.lattice === 'honeycomb';
     const hexCells = game.topology.lattice === 'hex_cells';
@@ -737,8 +776,65 @@ function renderBoard() {
     updateStatus();
 }
 
+function algebraic3DViewState() {
+    const preview = currentReversiPreview();
+    let legalReversi = [];
+    if (game.mode === 'clifford_reversi') {
+        const signature = [
+            game.topology.name,
+            game.topology.sizes.join('x'),
+            game.moveNumber,
+            game.currentPlayer,
+            els.transformSelect.value
+        ].join(':');
+        if (legalReversiCache.signature !== signature) {
+            legalReversiCache = {
+                signature,
+                keys: game.legalMoves(game.currentPlayer, els.transformSelect.value)
+                    .map((move) => coordKey(move.coord))
+            };
+        }
+        legalReversi = legalReversiCache.keys;
+    }
+    const legalAnyon = game.mode === 'anyon_jump' && selectedToken
+        ? game.legalActionsForToken(selectedToken)
+        : [];
+    const virasoroPreview = currentVirasoroPreview();
+    const legalGo = game.mode === 'virasoro_go'
+        ? (els.virasoroActionSelect.value === 'play'
+            ? game.legalMoves().map(coordKey)
+            : (hoverCoord && virasoroPreview?.ok ? [coordKey(hoverCoord)] : []))
+        : [];
+    return {
+        selectedToken,
+        legalKeys: new Set([
+            ...legalReversi,
+            ...legalAnyon.map((action) => coordKey(action.to)),
+            ...legalGo
+        ]),
+        previewKeys: new Set((preview?.flips || []).map((flip) => flip.key)),
+        affectedKeys: new Set((virasoroPreview?.affected || []).map((item) => item.key)),
+        trailKeys: braidTrailCells(),
+        paths: game.mode === 'anyon_jump'
+            ? [
+                ...legalAnyon.map((action) => action.path),
+                ...(game.braidEventLog || []).map((event) => event.path)
+            ]
+            : []
+    };
+}
+
+function renderAlgebraic3DBoard() {
+    if (!game || !usesAlgebraic3DView(game.topology.name)) return;
+    algebraic3d.renderGame(game, algebraic3DViewState());
+}
+
 function updateBoardHighlights() {
     if (!game) return;
+    if (usesAlgebraic3DView(game.topology.name)) {
+        renderAlgebraic3DBoard();
+        return;
+    }
     const preview = currentReversiPreview();
     const previewFlips = new Set((preview?.flips || []).map((flip) => flip.key));
     const legalReversi = game.mode === 'clifford_reversi'
@@ -1478,6 +1574,12 @@ function handleCount() {
 function capitalize(value) {
     return String(value || '').slice(0, 1).toUpperCase() + String(value || '').slice(1);
 }
+
+els.topologySelect.addEventListener('change', () => {
+    if (els.topologySelect.value === 'r3') {
+        els.zSizeInput.value = String(Math.max(2, Math.min(19, Number(els.widthInput.value) || 8)));
+    }
+});
 
 for (const control of [
     els.modeSelect,

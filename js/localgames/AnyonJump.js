@@ -140,6 +140,8 @@ export class AnyonJumpGame {
         const sizes = this.topology.sizes;
         const center = this.topology.dimensions === 4
             ? [Math.floor(sizes[0] / 2), Math.floor(sizes[1] / 2), Math.floor(sizes[2] / 2), Math.floor(sizes[3] / 2)]
+            : this.topology.dimensions === 3
+                ? [Math.floor(sizes[0] / 2), Math.floor(sizes[1] / 2), Math.floor(sizes[2] / 2)]
             : [Math.floor(sizes[0] / 2), Math.floor(sizes[1] / 2)];
         this.fusionSites.add(coordKey(center));
     }
@@ -147,9 +149,9 @@ export class AnyonJumpGame {
     setupInitialPosition() {
         const sizes = this.topology.sizes;
         const width = sizes[0];
-        const yBlack = this.topology.dimensions === 4 ? 0 : 1;
-        const yWhite = this.topology.dimensions === 4 ? sizes[1] - 1 : Math.max(0, sizes[1] - 2);
-        const z = this.topology.dimensions === 4 ? Math.floor(sizes[2] / 2) : null;
+        const yBlack = this.topology.dimensions >= 3 ? 0 : 1;
+        const yWhite = this.topology.dimensions >= 3 ? sizes[1] - 1 : Math.max(0, sizes[1] - 2);
+        const z = this.topology.dimensions >= 3 ? Math.floor(sizes[2] / 2) : null;
         const w = this.topology.dimensions === 4 ? Math.floor(sizes[3] / 2) : null;
         const count = Math.min(width, 6);
         const offset = Math.floor((width - count) / 2);
@@ -158,14 +160,20 @@ export class AnyonJumpGame {
         for (let i = 0; i < count; i++) {
             const x = offset + i;
             const type = modelTypes[i % modelTypes.length];
-            const blackCoord = this.topology.dimensions === 4 ? [x, yBlack, z, w] : [x, yBlack];
-            const whiteCoord = this.topology.dimensions === 4 ? [x, yWhite, z, w] : [x, yWhite];
+            const blackCoord = this.topology.dimensions === 4
+                ? [x, yBlack, z, w]
+                : this.topology.dimensions === 3 ? [x, yBlack, z] : [x, yBlack];
+            const whiteCoord = this.topology.dimensions === 4
+                ? [x, yWhite, z, w]
+                : this.topology.dimensions === 3 ? [x, yWhite, z] : [x, yWhite];
             this.addToken({ owner: 'black', coord: blackCoord, anyonType: type });
             this.addToken({ owner: 'white', coord: whiteCoord, anyonType: modelTypes[(i + 1) % modelTypes.length] });
         }
 
         const center = this.topology.dimensions === 4
             ? [Math.floor(sizes[0] / 2), Math.floor(sizes[1] / 2), z, w]
+            : this.topology.dimensions === 3
+                ? [Math.floor(sizes[0] / 2), Math.floor(sizes[1] / 2), z]
             : [Math.floor(sizes[0] / 2), Math.floor(sizes[1] / 2)];
         this.fusionSites.add(coordKey(center));
     }
