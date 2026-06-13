@@ -1,0 +1,190 @@
+export const BRAID_MEMORY_MODES = Object.freeze([
+    'off',
+    'abelian_parity',
+    'word_exact',
+    'nonabelian_fusion_channel'
+]);
+
+export const BRAID_CANCELLATION_MODES = Object.freeze([
+    'adjacent_inverse_only',
+    'braid_group_relations'
+]);
+
+export const DEFAULT_BRAID_MEMORY_CONFIG = Object.freeze({
+    braidMemoryMode: 'word_exact',
+    maxBraidWordLength: 12,
+    braidCancellationMode: 'adjacent_inverse_only'
+});
+
+function integer(value, fallback, min = 0, max = 1024) {
+    const parsed = Math.floor(Number(value));
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(min, Math.min(max, parsed));
+}
+
+function normalizeSign(sign) {
+    return Number(sign) < 0 ? -1 : 1;
+}
+
+export function normalizeBraidMemoryMode(mode = DEFAULT_BRAID_MEMORY_CONFIG.braidMemoryMode) {
+    return BRAID_MEMORY_MODES.includes(mode) ? mode : DEFAULT_BRAID_MEMORY_CONFIG.braidMemoryMode;
+}
+
+export function normalizeBraidCancellationMode(mode = DEFAULT_BRAID_MEMORY_CONFIG.braidCancellationMode) {
+    return BRAID_CANCELLATION_MODES.includes(mode) ? mode : DEFAULT_BRAID_MEMORY_CONFIG.braidCancellationMode;
+}
+
+export function normalizeBraidMemoryConfig(config = {}) {
+    return {
+        ...DEFAULT_BRAID_MEMORY_CONFIG,
+        ...config,
+        braidMemoryMode: normalizeBraidMemoryMode(config.braidMemoryMode),
+        maxBraidWordLength: integer(
+            config.maxBraidWordLength,
+            DEFAULT_BRAID_MEMORY_CONFIG.maxBraidWordLength,
+            0,
+            256
+        ),
+        braidCancellationMode: normalizeBraidCancellationMode(config.braidCancellationMode)
+    };
+}
+
+export function createBraidGenerator({ generator = 'sigma', index = 0, sign = 1, targetId = '', tick = 0 } = {}) {
+    return {
+        generator: String(generator || 'sigma'),
+        index: integer(index, 0, 0, 1024),
+        sign: normalizeSign(sign),
+        targetId: String(targetId || ''),
+        tick: integer(tick, 0, 0, Number.MAX_SAFE_INTEGER)
+    };
+}
+
+export function inverseGenerator(generator) {
+    const normalized = createBraidGenerator(generator);
+    return {
+        ...normalized,
+        sign: normalized.sign === 1 ? -1 : 1
+    };
+}
+
+export function generatorsAreInverse(first, second) {
+    if (!first || !second) return false;
+    const left = createBraidGenerator(first);
+    const right = createBraidGenerator(second);
+    return left.generator === right.generator
+        && left.index === right.index
+        && left.targetId === right.targetId
+        && left.sign === -right.sign;
+}
+
+export function simplifyBraidWord(word = [], config = {}) {
+    const normalizedConfig = normalizeBraidMemoryConfig(config);
+    const simplified = [];
+    for (const generator of word) {
+        const normalized = createBraidGenerator(generator);
+        const previous = simplified[simplified.length - 1];
+        if (generatorsAreInverse(previous, normalized)) {
+            simplified.pop();
+        } else {
+            simplified.push(normalized);
+        }
+    }
+
+    if (normalizedConfig.maxBraidWordLength <= 0) return [];
+    return simplified.slice(-normalizedConfig.maxBraidWordLength);
+}
+
+export function defineBraidMemoryAccessors(token) {
+    if (!token || Object.prototype.hasOwnProperty.call(token, 'isBraided')) return token;
+    Object.defineProperty(token, 'isBraided', {
+        enumerable: true,
+        configurable: true,
+        get() {
+            return Array.isArray(this.braidWord) && this.braidWord.length > 0;
+        }
+    });
+    return token;
+}
+
+export function attachBraidMemory(token, values = {}) {
+    if (!token) return token;
+    token.braidWord = Array.isArray(values.braidWord)
+        ? simplifyBraidWord(values.braidWord)
+        : [];
+    token.braidHistory = Array.isArray(values.braidHistory)
+        ? values.braidHistory.map((entry) => createBraidGenerator(entry))
+        : [];
+    token.braidedWith = Array.isArray(values.braidedWith)
+        ? [...new Set(values.braidedWith.map((id) => String(id)))]
+        : [];
+    return defineBraidMemoryAccessors(token);
+}
+
+export function appendBraidGenerator(token, generator, config = {}) {
+    const normalizedConfig = normalizeBraidMemoryConfig(config);
+    attachBraidMemory(token, token);
+    if (normalizedConfig.braidMemoryMode === 'off') {
+        return {
+            appended: null,
+            braidWord: [...token.braidWord],
+            isBraided: token.isBraided
+        };
+    }
+
+    const normalized = createBraidGenerator(generator);
+    token.braidHistory.push(normalized);
+    if (normalized.targetId && !token.braidedWith.includes(normalized.targetId)) {
+        token.braidedWith.push(normalized.targetId);
+    }
+
+    if (normalizedConfig.braidMemoryMode === 'abelian_parity') {
+        const sameTargetIndex = token.braidWord.findIndex((entry) =>
+            entry.generator === normalized.generator
+            && entry.index === normalized.index
+            && entry.targetId === normalized.targetId);
+        if (sameTargetIndex >= 0) {
+            token.braidWord.splice(sameTargetIndex, 1);
+        } else {
+            token.braidWord.push({ ...normalized, sign: 1 });
+        }
+    } else {
+        token.braidWord.push(normalized);
+        token.braidWord = simplifyBraidWord(token.braidWord, normalizedConfig);
+    }
+
+    return {
+        appended: normalized,
+        braidWord: token.braidWord.map((entry) => ({ ...entry })),
+        isBraided: token.isBraided
+    };
+}
+
+export function mergeBraidMemory(target, source, config = {}) {
+    attachBraidMemory(target, target);
+    attachBraidMemory(source, source);
+    target.braidHistory.push(...source.braidHistory.map((entry) => ({ ...entry })));
+    target.braidedWith = [...new Set([...target.braidedWith, ...source.braidedWith])];
+    target.braidWord = simplifyBraidWord([...target.braidWord, ...source.braidWord], config);
+    return target;
+}
+
+export function braidGeneratorIndex(tokenIds = [], firstId = '', secondId = '') {
+    const ordered = [...new Set(tokenIds.map((id) => String(id)))].sort();
+    const firstIndex = ordered.indexOf(String(firstId));
+    const secondIndex = ordered.indexOf(String(secondId));
+    if (firstIndex < 0 || secondIndex < 0) return 0;
+    return Math.max(0, Math.min(firstIndex, secondIndex));
+}
+
+export function braidSignFromDirection(direction = []) {
+    const firstNonZero = direction.find((value) => value !== 0);
+    return firstNonZero == null || firstNonZero >= 0 ? 1 : -1;
+}
+
+export function braidSignFromWinding(winding = {}) {
+    for (const axis of ['x', 'y', 'z', 'w']) {
+        if (winding[axis] < 0) return -1;
+        if (winding[axis] > 0) return 1;
+    }
+    return 1;
+}

@@ -16,6 +16,13 @@ import {
     vertexKey,
     windingNumbers
 } from './AnyonTopology.js';
+import {
+    appendBraidGenerator,
+    attachBraidMemory,
+    braidGeneratorIndex,
+    braidSignFromWinding,
+    mergeBraidMemory
+} from './BraidMemory.js';
 
 export class AnyonGameEngine {
     constructor({ topology = createRectTorusTopology(), config = {}, players = ['black', 'white'] } = {}) {
@@ -45,6 +52,7 @@ export class AnyonGameEngine {
             metadata: { ...metadata },
             disabledTurns: 0
         };
+        attachBraidMemory(token, metadata);
         this.tokens.set(tokenId, token);
         this.worldlines.set(tokenId, [normalizedVertex]);
         return token;
@@ -108,6 +116,8 @@ export class AnyonGameEngine {
         const winding = windingNumbers(movingLine, this.topology);
         const noncontractible = noncontractibleCycleCrossed(movingLine, this.topology);
         const localBraids = [];
+        const tokenIds = [...this.tokens.keys()];
+        const sign = braidSignFromWinding(winding);
 
         for (const target of this.tokens.values()) {
             if (target.id === movingToken.id) continue;
@@ -115,7 +125,21 @@ export class AnyonGameEngine {
             const phase = mutualBraidPhase(movingToken.anyonType, target.anyonType, this.config.anyonModel);
             const effect = braidEffectForPhase(phase, this.config);
             if (effect.effect !== 'none') this.applyBraidEffect(player, effect);
-            localBraids.push({ around: target.id, targetType: target.anyonType, phase, effect });
+            const memory = appendBraidGenerator(movingToken, {
+                generator: 'sigma',
+                index: braidGeneratorIndex(tokenIds, movingToken.id, target.id),
+                sign,
+                targetId: target.id,
+                tick: this.turn
+            }, this.config);
+            localBraids.push({
+                around: target.id,
+                targetType: target.anyonType,
+                phase,
+                effect,
+                braidGenerator: memory.appended,
+                braidWord: memory.braidWord
+            });
         }
 
         return {
@@ -160,6 +184,7 @@ export class AnyonGameEngine {
 
         if (fusion.resolved === '1') {
             if (this.config.vacuumFusionBehavior === 'replace') {
+                mergeBraidMemory(first, second, this.config);
                 first.anyonType = '1';
                 this.tokens.delete(secondId);
             } else {
@@ -170,6 +195,7 @@ export class AnyonGameEngine {
             return result;
         }
 
+        mergeBraidMemory(first, second, this.config);
         first.anyonType = fusion.resolved;
         first.vertex = second.vertex;
         this.tokens.delete(secondId);

@@ -7,6 +7,13 @@ import {
     normalizeAnyonType
 } from '../anyon/AnyonAlgebra.js';
 import {
+    appendBraidGenerator,
+    attachBraidMemory,
+    braidGeneratorIndex,
+    braidSignFromDirection,
+    mergeBraidMemory
+} from '../anyon/BraidMemory.js';
+import {
     coordKey,
     createGraphTopology,
     coordsEqual,
@@ -111,6 +118,7 @@ export class AnyonJumpGame {
             measurementHistory: [],
             noiseHistory: []
         };
+        attachBraidMemory(token);
         this.tokens.set(tokenId, token);
         this.worldlines.set(tokenId, [cloneCoord(normalized)]);
         return token;
@@ -236,11 +244,20 @@ export class AnyonJumpGame {
                 const phase = mutualBraidPhase(token.anyonType, jumped.anyonType, this.config.anyonModel);
                 const effect = braidEffectForPhase(phase, this.config);
                 this.applyBraidEffect(token.owner, effect);
+                const memory = appendBraidGenerator(token, {
+                    generator: 'sigma',
+                    index: braidGeneratorIndex([...this.tokens.keys()], token.id, jumped.id),
+                    sign: braidSignFromDirection(action.directions[0]),
+                    targetId: jumped.id,
+                    tick: this.moveNumber
+                }, this.config);
                 braid = {
                     jumpedId: jumped.id,
                     jumpedType: jumped.anyonType,
                     phase,
-                    effect
+                    effect,
+                    braidGenerator: memory.appended,
+                    braidWord: memory.braidWord
                 };
             }
         }
@@ -353,6 +370,7 @@ export class AnyonJumpGame {
             this.tokens.delete(other.id);
             outcome.removed = [token.id, other.id];
         } else if (fusion.resolved) {
+            mergeBraidMemory(token, other, this.config);
             token.anyonType = fusion.resolved;
             this.tokens.delete(other.id);
             outcome.replaced = { id: token.id, anyonType: fusion.resolved };

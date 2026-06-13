@@ -1,3 +1,8 @@
+import {
+    DEFAULT_BRAID_MEMORY_CONFIG,
+    normalizeBraidMemoryConfig
+} from './BraidMemory.js';
+
 export const ANYON_MODELS = Object.freeze({
     toric_code: Object.freeze(['1', 'e', 'm', 'psi']),
     ising: Object.freeze(['1', 'sigma', 'psi']),
@@ -17,7 +22,8 @@ export const DEFAULT_ANYON_CONFIG = Object.freeze({
     enableFusionChannels: true,
     enablePathHistory: true,
     enableTopologySeamTransforms: true,
-    vacuumFusionBehavior: 'remove'
+    vacuumFusionBehavior: 'remove',
+    ...DEFAULT_BRAID_MEMORY_CONFIG
 });
 
 const TORIC_FUSION = {
@@ -74,9 +80,11 @@ export function normalizeAnyonType(type = '1', model = DEFAULT_ANYON_CONFIG.anyo
 export function normalizeAnyonConfig(config = {}) {
     const anyonModel = normalizeAnyonModel(config.anyonModel);
     const braidEffect = BRAID_EFFECTS.includes(config.braidEffect) ? config.braidEffect : DEFAULT_ANYON_CONFIG.braidEffect;
+    const braidMemory = normalizeBraidMemoryConfig(config);
     return {
         ...DEFAULT_ANYON_CONFIG,
         ...config,
+        ...braidMemory,
         anyonModel,
         braidEffect,
         enableFusionChannels: config.enableFusionChannels ?? DEFAULT_ANYON_CONFIG.enableFusionChannels,

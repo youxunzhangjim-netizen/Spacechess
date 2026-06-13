@@ -36,7 +36,8 @@
     "dev:algebraic": "npm run dev --workspace algebraic-games",
     "verify:probability": "node tools/verify-probability-engine.mjs",
     "verify:floquet": "node tools/verify-floquet-engine.mjs",
-    "verify:defaults": "node tools/verify-default-board-sizes.mjs"
+    "verify:defaults": "node tools/verify-default-board-sizes.mjs",
+    "verify:braid-memory": "node tools/verify-braid-memory.mjs"
   },
   "dependencies": {
     "peerjs": "^1.5.5",
