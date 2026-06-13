@@ -194,6 +194,28 @@ export function appendBraidGenerator(token, generator, config = {}) {
     };
 }
 
+export function applyBraid(token, target, braidEvent = {}, config = {}) {
+    const { target: _internalTarget, ...eventData } = braidEvent;
+    const targetId = String(braidEvent.targetId || target?.id || target || '');
+    const generator = createBraidGenerator({
+        generator: braidEvent.generator || 'sigma',
+        index: braidEvent.index,
+        sign: braidEvent.sign,
+        targetId,
+        tick: braidEvent.tick
+    });
+    const memory = appendBraidGenerator(token, generator, config);
+    return {
+        ...eventData,
+        targetId,
+        braidGenerator: memory.appended,
+        cancelledInverse: memory.cancelledInverse,
+        fullyUnbraided: memory.fullyUnbraided,
+        braidWord: memory.braidWord,
+        isBraided: memory.isBraided
+    };
+}
+
 export function attemptUnbraid(token, generator, config = {}) {
     const normalizedConfig = normalizeBraidMemoryConfig(config);
     attachBraidMemory(token, token, normalizedConfig);

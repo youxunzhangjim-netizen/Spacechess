@@ -41,6 +41,9 @@ export function createRectTorusTopology({ width = 8, height = 8, twistSeams = fa
         seamTransform(edge) {
             const crossing = this.homologyCycleCrossing(edge);
             return twistSeams && (crossing.x || crossing.y) ? 'twist' : 'identity';
+        },
+        detectLocalEncirclement(path, targetVertex) {
+            return localEncirclement(path, targetVertex, this);
         }
     };
 }

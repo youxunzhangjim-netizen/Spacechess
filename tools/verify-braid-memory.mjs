@@ -10,8 +10,11 @@ import {
     nextRequiredUnbraidGenerator,
     simplifyBraidWord
 } from '../js/anyon/BraidMemory.js';
+import { detectTopologyBraidEvents } from '../js/anyon/BraidPathDetector.js';
+import { createRectTorusTopology } from '../js/anyon/AnyonTopology.js';
 import { createToricAnyonLoopsGame } from '../js/anyon/AnyonEngine.js';
 import { AnyonJumpGame } from '../js/localgames/AnyonJump.js';
+import { createGraphTopology } from '../js/topology/GraphTopologies.js';
 
 const generator = { generator: 'sigma', index: 2, sign: 1, targetId: 'm1', tick: 7 };
 const inverse = inverseGenerator(generator);
@@ -71,6 +74,50 @@ assert.equal(parityToken.braidWord.length, 0, 'Abelian parity mode toggles match
 
 assert.equal(braidGeneratorIndex(['c', 'a', 'b'], 'c', 'b'), 1);
 
+const detectorTorus = createRectTorusTopology({ width: 4, height: 4 });
+assert.equal(detectTopologyBraidEvents({
+    movingToken: { id: 'plain' },
+    topology: detectorTorus,
+    path: [[0, 0], [1, 0]],
+    tokenIds: ['plain']
+}).length, 0, 'Ordinary non-wrapping movement does not braid.');
+const torusEvents = detectTopologyBraidEvents({
+    movingToken: { id: 'wrap' },
+    topology: detectorTorus,
+    path: [[3, 0], [0, 0]],
+    tokenIds: ['wrap']
+});
+assert.equal(torusEvents.length, 1);
+assert.equal(torusEvents[0].targetId, 'cycle:x');
+assert.equal(torusEvents[0].sign, -1);
+
+const klein = createGraphTopology({ topology: 'klein_bottle', width: 4, height: 4 });
+const kleinStep = klein.step([1, 3], [0, 1]);
+const kleinEvents = detectTopologyBraidEvents({
+    movingToken: { id: 'k' },
+    topology: klein,
+    path: [[1, 3], kleinStep.coord],
+    edges: [kleinStep.edge],
+    directions: [[0, 1]],
+    tokenIds: ['k']
+});
+assert.equal(kleinEvents.length, 1);
+assert.equal(kleinEvents[0].reason, 'twisted_seam');
+assert.equal(kleinEvents[0].targetId, 'branch_cut:y');
+
+const hookEvents = detectTopologyBraidEvents({
+    movingToken: { id: 'mover' },
+    topology: {
+        normalize: (vertex) => vertex,
+        detectLocalEncirclement: () => true
+    },
+    path: [[0, 0], [2, 0], [2, 2], [0, 0]],
+    targets: [{ id: 'defect-1', vertex: [1, 1], defect: true }],
+    tokenIds: ['mover', 'defect-1']
+});
+assert.equal(hookEvents.length, 1);
+assert.equal(hookEvents[0].reason, 'defect_encirclement');
+
 const jump = new AnyonJumpGame({ topology: { topology: 'torus', width: 4, height: 4 } });
 jump.tokens.clear();
 jump.worldlines.clear();
@@ -93,9 +140,9 @@ loopGame.addToken({ id: 'm1', owner: 'white', vertex: [1, 0], anyonType: 'm' });
 const loopMove = loopGame.moveToken('e1', [0, 0], { player: 'black' });
 assert.equal(loopMove.ok, true);
 assert.equal(loopGame.tokens.get('e1').braidWord.length, 1);
-assert.equal(loopGame.tokens.get('e1').braidWord[0].targetId, 'm1');
+assert.equal(loopGame.tokens.get('e1').braidWord[0].targetId, 'cycle:x');
 assert.equal(loopGame.exportState().tokens.find((entry) => entry.id === 'e1').isBraided, true);
-const loopUnbraid = loopGame.attemptUnbraid('e1', 'm1', { player: 'black', sign: 1 });
+const loopUnbraid = loopGame.attemptUnbraid('e1', 'cycle:x', { player: 'black', sign: 1 });
 assert.equal(loopUnbraid.ok, true);
 assert.equal(loopUnbraid.event.unbraid.fullyUnbraided, true);
 

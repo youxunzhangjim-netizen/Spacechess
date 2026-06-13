@@ -7,13 +7,14 @@ import {
     normalizeAnyonType
 } from '../anyon/AnyonAlgebra.js';
 import {
-    appendBraidGenerator,
+    applyBraid as applyBraidToMemory,
     attemptUnbraid as applyUnbraidGenerator,
     attachBraidMemory,
     braidGeneratorIndex,
     braidSignFromDirection,
     mergeBraidMemory
 } from '../anyon/BraidMemory.js';
+import { detectTopologyBraidEvents } from '../anyon/BraidPathDetector.js';
 import {
     coordKey,
     createGraphTopology,
@@ -216,6 +217,24 @@ export class AnyonJumpGame {
         if (effect.effect === 'flip_parity') this.parity[owner] = this.parity[owner] ? 0 : 1;
     }
 
+    applyBraid(movingToken, event) {
+        const target = this.tokens.get(event.targetId) || event.target || { id: event.targetId, defect: true };
+        const memory = applyBraidToMemory(movingToken, target, event, this.config);
+        const phase = target?.anyonType
+            ? mutualBraidPhase(movingToken.anyonType, target.anyonType, this.config.anyonModel)
+            : 1;
+        const effect = braidEffectForPhase(phase, this.config);
+        if (effect.effect !== 'none') this.applyBraidEffect(movingToken.owner, effect);
+        return {
+            ...memory,
+            jumpedId: event.reason === 'jump_over' ? event.targetId : null,
+            jumpedType: event.reason === 'jump_over' ? target?.anyonType : null,
+            targetType: target?.anyonType || target?.type || event.reason,
+            phase,
+            effect
+        };
+    }
+
     braidGeneratorFor(token, targetId, { path = [], direction = [], sign = null, index = null } = {}) {
         const resolvedDirection = direction.length
             ? direction
@@ -305,30 +324,24 @@ export class AnyonJumpGame {
         token.coord = cloneCoord(action.to);
         this.worldlines.get(token.id)?.push(...action.path.slice(1).map(cloneCoord));
 
-        let braid = null;
-        if (action.kind === 'jump' && action.over) {
-            const jumped = this.tokens.get(action.over);
-            if (jumped) {
-                const phase = mutualBraidPhase(token.anyonType, jumped.anyonType, this.config.anyonModel);
-                const effect = braidEffectForPhase(phase, this.config);
-                this.applyBraidEffect(token.owner, effect);
-                const memory = appendBraidGenerator(token, {
-                    generator: 'sigma',
-                    index: braidGeneratorIndex([...this.tokens.keys()], token.id, jumped.id),
-                    sign: braidSignFromDirection(action.directions[0]),
-                    targetId: jumped.id,
-                    tick: this.moveNumber
-                }, this.config);
-                braid = {
-                    jumpedId: jumped.id,
-                    jumpedType: jumped.anyonType,
-                    phase,
-                    effect,
-                    braidGenerator: memory.appended,
-                    braidWord: memory.braidWord
-                };
-            }
-        }
+        const jumped = action.over ? this.tokens.get(action.over) : null;
+        const braidEvents = detectTopologyBraidEvents({
+            movingToken: token,
+            path: action.path,
+            topology: this.topology,
+            targets: [...this.tokens.values()].filter((target) => target.id !== token.id),
+            explicitTargets: jumped ? [{
+                target: jumped,
+                reason: 'jump_over',
+                sign: braidSignFromDirection(action.directions[0]),
+                path: action.path
+            }] : [],
+            edges,
+            directions: action.directions,
+            tick: this.moveNumber,
+            tokenIds: [...this.tokens.keys()]
+        }).map((event) => this.applyBraid(token, event));
+        const braid = braidEvents[0] || null;
 
         const fusion = this.resolveFusion(token.id);
         const winding = sumHomology(edges);
@@ -346,6 +359,7 @@ export class AnyonJumpGame {
             beforeType,
             afterType: this.tokens.get(action.tokenId)?.anyonType || '1',
             braid,
+            braidEvents,
             fusion,
             winding,
             seamTransforms: edges

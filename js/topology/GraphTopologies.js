@@ -88,6 +88,21 @@ function signedWrap(from, raw, size) {
     return 0;
 }
 
+function detectLocalEncirclement(path = [], targetCoord, normalize) {
+    if (path.length < 4 || !Array.isArray(targetCoord)) return false;
+    const normalizedPath = path.map((coord) => normalize(coord)).filter(Boolean);
+    if (normalizedPath.length < 4) return false;
+    if (!sameCoord(normalizedPath[0], normalizedPath[normalizedPath.length - 1])) return false;
+    const xs = normalizedPath.map((coord) => coord[0]);
+    const ys = normalizedPath.map((coord) => coord[1]);
+    const target = normalize(targetCoord);
+    if (!target) return false;
+    return target[0] > Math.min(...xs)
+        && target[0] < Math.max(...xs)
+        && target[1] > Math.min(...ys)
+        && target[1] < Math.max(...ys);
+}
+
 function makeEdge({ topology, from, rawTo, to, direction, wrap = {}, twisted = false }) {
     const transport = defaultSeamTransport({
         topology,
@@ -239,6 +254,9 @@ function create2DTopology(config) {
                 twisted: Boolean(edge?.twisted)
             };
         },
+        detectLocalEncirclement(path, targetCoord) {
+            return detectLocalEncirclement(path, targetCoord, normalize);
+        },
         displayCoord(coord) {
             return `(${coord[0]},${coord[1]})`;
         },
@@ -320,6 +338,9 @@ function create4DTopology(config) {
         },
         edgeWrapInfo() {
             return { wrapX: 0, wrapY: 0, wrapZ: 0, wrapW: 0, twisted: false };
+        },
+        detectLocalEncirclement() {
+            return false;
         },
         displayCoord(coord) {
             return `(${coord[0]},${coord[1]},${coord[2]},${coord[3]})`;

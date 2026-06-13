@@ -10,14 +10,12 @@ import {
     applySeamTransforms,
     createRectTorusTopology,
     isClosedLoop,
-    localEncirclement,
-    noncontractibleCycleCrossed,
     sameVertex,
     vertexKey,
     windingNumbers
 } from './AnyonTopology.js';
 import {
-    appendBraidGenerator,
+    applyBraid as applyBraidToMemory,
     attemptUnbraid as applyUnbraidGenerator,
     attachBraidMemory,
     braidGeneratorIndex,
@@ -25,6 +23,7 @@ import {
     braidSignFromWinding,
     mergeBraidMemory
 } from './BraidMemory.js';
+import { detectTopologyBraidEvents } from './BraidPathDetector.js';
 
 export class AnyonGameEngine {
     constructor({ topology = createRectTorusTopology(), config = {}, players = ['black', 'white'] } = {}) {
@@ -41,6 +40,7 @@ export class AnyonGameEngine {
         this.turn = 0;
         this.fusionChannels = [];
         this.events = [];
+        this.defects = Array.isArray(topology?.defects) ? [...topology.defects] : [];
     }
 
     addToken({ id, owner = this.currentPlayer, vertex, anyonType = '1', metadata = {} }) {
@@ -114,41 +114,41 @@ export class AnyonGameEngine {
     }
 
     evaluateBraids(movingToken, path, player) {
-        const movingLine = this.worldlines.get(movingToken.id) || path;
-        const winding = windingNumbers(movingLine, this.topology);
-        const noncontractible = noncontractibleCycleCrossed(movingLine, this.topology);
-        const localBraids = [];
-        const tokenIds = [...this.tokens.keys()];
-        const sign = braidSignFromWinding(winding);
-
-        for (const target of this.tokens.values()) {
-            if (target.id === movingToken.id) continue;
-            if (!localEncirclement(movingLine, target.vertex, this.topology) && !noncontractible) continue;
-            const phase = mutualBraidPhase(movingToken.anyonType, target.anyonType, this.config.anyonModel);
-            const effect = braidEffectForPhase(phase, this.config);
-            if (effect.effect !== 'none') this.applyBraidEffect(player, effect);
-            const memory = appendBraidGenerator(movingToken, {
-                generator: 'sigma',
-                index: braidGeneratorIndex(tokenIds, movingToken.id, target.id),
-                sign,
-                targetId: target.id,
-                tick: this.turn
-            }, this.config);
-            localBraids.push({
-                around: target.id,
-                targetType: target.anyonType,
-                phase,
-                effect,
-                braidGenerator: memory.appended,
-                braidWord: memory.braidWord
-            });
-        }
+        const targets = [...this.tokens.values()].filter((target) => target.id !== movingToken.id);
+        const detected = detectTopologyBraidEvents({
+            movingToken,
+            path,
+            topology: this.topology,
+            targets,
+            defects: this.defects,
+            tick: this.turn,
+            tokenIds: [...this.tokens.keys()]
+        });
+        const localBraids = detected.map((event) => this.applyBraid(movingToken, event, player));
 
         return {
-            closedLoop: isClosedLoop(movingLine),
-            winding,
-            noncontractible,
+            closedLoop: isClosedLoop(path),
+            winding: windingNumbers(path, this.topology),
+            noncontractible: localBraids.some((event) => event.reason === 'noncontractible_cycle'),
+            events: localBraids,
             localBraids
+        };
+    }
+
+    applyBraid(movingToken, event, player = movingToken.owner) {
+        const target = this.tokens.get(event.targetId) || event.target || { id: event.targetId, defect: true };
+        const memory = applyBraidToMemory(movingToken, target, event, this.config);
+        const phase = target?.anyonType
+            ? mutualBraidPhase(movingToken.anyonType, target.anyonType, this.config.anyonModel)
+            : 1;
+        const effect = braidEffectForPhase(phase, this.config);
+        if (effect.effect !== 'none') this.applyBraidEffect(player, effect);
+        return {
+            ...memory,
+            around: event.targetId,
+            targetType: target?.anyonType || target?.type || event.reason,
+            phase,
+            effect
         };
     }
 
