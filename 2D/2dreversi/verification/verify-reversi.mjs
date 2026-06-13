@@ -24,6 +24,12 @@ const randomAgain = new ReversiGame({ topology: 'random', size: 8, randomBoundar
 assert.deepEqual(random.topology.step([0, 3], [-1, 0]), randomAgain.topology.step([0, 3], [-1, 0]));
 assert.equal(random.topology.randomBoundaryLinks(2).length, 2);
 
+const honeycomb = new ReversiGame({ topology: 'pbc', lattice: 'honeycomb', size: 8 });
+assert.equal(honeycomb.topology.lattice, 'honeycomb');
+assert.equal(honeycomb.topology.directions.length, 3);
+assert.deepEqual(honeycomb.topology.step([4, 4], [0, 1]), [4, 5]);
+assert.deepEqual(honeycomb.topology.step([5, 4], [0, 1]), [5, 3]);
+
 const noMove = new ReversiGame({ topology: 'open2d', size: 4 });
 noMove.board = new Map(noMove.topology.allCoords().map((coord) => [noMove.key(coord), { color: 'black' }]));
 noMove.board.set(noMove.key([0, 0]), { color: 'white' });

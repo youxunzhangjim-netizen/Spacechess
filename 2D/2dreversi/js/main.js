@@ -7,6 +7,7 @@ class Reversi2DApp {
         this.sizeSelect = document.getElementById('boardSizeSelect');
         this.customSizeInput = document.getElementById('customBoardSizeInput');
         this.boundarySelect = document.getElementById('boundarySelect');
+        this.latticeSelect = document.getElementById('latticeSelect');
         this.statusEl = document.getElementById('gameStatus');
         this.summaryEl = document.getElementById('moveSummary');
         this.turnEl = document.getElementById('playerTurn');
@@ -31,6 +32,7 @@ class Reversi2DApp {
         const params = new URLSearchParams(window.location.search);
         const mode = normalizeReversiTopology(params.get('mode') || params.get('boundary') || 'open2d');
         this.boundarySelect.value = ['open2d', 'pbc', 'klein', 'random'].includes(mode) ? mode : 'open2d';
+        if (String(params.get('lattice') || '').toLowerCase() === 'honeycomb') this.latticeSelect.value = 'honeycomb';
         const size = params.get('size');
         if (size !== null && size.trim() !== '' && Number.isFinite(Number(size))) this.setSizeSelection(size);
     }
@@ -51,6 +53,7 @@ class Reversi2DApp {
     createLogic() {
         return new ReversiGame({
             topology: this.boundarySelect.value,
+            lattice: this.latticeSelect.value,
             size: this.boardSize(),
             maxSize: 30
         });
@@ -73,6 +76,7 @@ class Reversi2DApp {
             this.resetGame();
         });
         this.boundarySelect.addEventListener('change', () => this.resetGame());
+        this.latticeSelect.addEventListener('change', () => this.resetGame());
         this.passBtn.addEventListener('click', () => this.passTurn());
         this.newGameBtn.addEventListener('click', () => this.resetGame());
     }
@@ -178,6 +182,7 @@ class Reversi2DApp {
             }
         }
 
+        if (this.logic.topology.lattice === 'honeycomb') this.drawHoneycombLinks(rect);
         this.drawTopologyHints(rect);
         for (const coord of this.logic.topology.allCoords()) {
             const stone = this.logic.get(coord);
@@ -187,6 +192,36 @@ class Reversi2DApp {
         if (this.hoverCoord && legalMoves.has(this.logic.key(this.hoverCoord))) {
             this.drawHover(this.hoverCoord, rect);
         }
+    }
+
+    drawHoneycombLinks(rect) {
+        const ctx = this.ctx;
+        const drawn = new Set();
+        ctx.save();
+        ctx.strokeStyle = 'rgba(224, 247, 255, 0.34)';
+        ctx.lineWidth = Math.max(1.5, rect.step * 0.035);
+        ctx.beginPath();
+        for (const coord of this.logic.topology.allCoords()) {
+            const fromKey = this.logic.key(coord);
+            const fromX = rect.left + (coord[0] + 0.5) * rect.step;
+            const fromY = rect.top + (coord[1] + 0.5) * rect.step;
+            for (const direction of this.logic.topology.directions) {
+                const neighbor = this.logic.topology.step(coord, direction);
+                if (!neighbor) continue;
+                if (Math.abs(neighbor[0] - coord[0]) > 1 || Math.abs(neighbor[1] - coord[1]) > 1) continue;
+                const toKey = this.logic.key(neighbor);
+                const edgeKey = [fromKey, toKey].sort().join('|');
+                if (drawn.has(edgeKey)) continue;
+                drawn.add(edgeKey);
+                ctx.moveTo(fromX, fromY);
+                ctx.lineTo(
+                    rect.left + (neighbor[0] + 0.5) * rect.step,
+                    rect.top + (neighbor[1] + 0.5) * rect.step
+                );
+            }
+        }
+        ctx.stroke();
+        ctx.restore();
     }
 
     drawTopologyHints(rect) {
@@ -276,13 +311,16 @@ class Reversi2DApp {
         this.passBtn.disabled = this.logic.gameOver || this.logic.legalMoves(this.logic.currentPlayer).length > 0;
         const topology = this.boundarySelect.value;
         this.boundaryEl.textContent = topology === 'random' ? '2D RBC' : topology === 'klein' ? 'Klein' : topology === 'pbc' ? 'PBC x/y' : 'Standard';
-        this.boundaryInfoEl.textContent = topology === 'random'
+        const latticeText = this.logic.topology.lattice === 'honeycomb'
+            ? ' Honeycomb uses three topology-aware rays; only chains lying on those graph rays flip.'
+            : ' Square uses the usual eight 2D rays.';
+        this.boundaryInfoEl.textContent = (topology === 'random'
             ? '2D RBC uses one fixed random map from each boundary exit to another boundary square. The map stays static for this game.'
             : topology === 'klein'
             ? 'Klein bottle identifies left-right normally and top-bottom with x flipped.'
             : topology === 'pbc'
                 ? 'PBC identifies both left-right and top-bottom edges.'
-                : 'Standard uses ordinary open board edges.';
+                : 'Standard uses ordinary open board edges.') + latticeText;
         if (this.logic.gameOver) this.setStatus(this.resultText());
         this.renderHistory();
         this.render();

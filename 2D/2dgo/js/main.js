@@ -12,6 +12,7 @@ class Go2DApp {
         this.sizeSelect = document.getElementById('boardSizeSelect');
         this.customSizeInput = document.getElementById('customBoardSizeInput');
         this.boundarySelect = document.getElementById('boundarySelect');
+        this.latticeSelect = document.getElementById('latticeSelect');
         this.timerSelect = document.getElementById('timerSelect');
         this.gameModeSelect = document.getElementById('gameModeSelect');
         this.onlineControls = document.getElementById('onlineControls');
@@ -41,7 +42,7 @@ class Go2DApp {
         this.chatSendBtn = document.getElementById('chatSendBtn');
 
         this.applyUrlSettings();
-        this.logic = new GoGameLogic({ size: this.boardSize(), topology: this.boundarySelect.value, dimension: 2, komi: KOMI });
+        this.logic = new GoGameLogic({ size: this.boardSize(), topology: this.boundarySelect.value, lattice: this.latticeSelect.value, dimension: 2, komi: KOMI });
         this.network = new GoNetworkManager(this, { publicGameUrl: PUBLIC_GAME_URL, storagePrefix: STORAGE_PREFIX });
         this.myColor = null;
         this.settingsLocked = false;
@@ -74,6 +75,7 @@ class Go2DApp {
         if (['klein', 'kleingo', 'klein_bottle', 'klein-bottle'].includes(mode)) this.boundarySelect.value = 'klein';
         if (['random', 'random_boundary', 'random-boundary'].includes(mode)) this.boundarySelect.value = 'random';
         if (mode === 'obc' || mode === 'open2d') this.boundarySelect.value = 'open2d';
+        if (String(params.get('lattice') || '').toLowerCase() === 'honeycomb') this.latticeSelect.value = 'honeycomb';
     }
 
     tryJoinSharedRoomFromUrl() {
@@ -124,6 +126,7 @@ class Go2DApp {
             this.resetGame();
         });
         this.boundarySelect.addEventListener('change', () => this.resetGame());
+        this.latticeSelect.addEventListener('change', () => this.resetGame());
         this.timerSelect.addEventListener('change', () => this.resetGame());
         this.gameModeSelect.addEventListener('change', () => this.updateOnlineControls());
         this.passBtn.addEventListener('click', () => this.passTurn());
@@ -271,7 +274,7 @@ class Go2DApp {
 
     resetGame({ broadcast = false } = {}) {
         if (!broadcast && !this.canChangeSettings()) return;
-        this.logic.reset({ size: this.boardSize(), topology: this.boundarySelect.value, dimension: 2, komi: KOMI });
+        this.logic.reset({ size: this.boardSize(), topology: this.boundarySelect.value, lattice: this.latticeSelect.value, dimension: 2, komi: KOMI });
         this.gameStarted = false;
         this.settingsLocked = this.network.isConnected;
         this.timeLimit = Number(this.timerSelect.value) || 0;
@@ -325,12 +328,33 @@ class Go2DApp {
         ctx.strokeStyle = 'rgba(42, 27, 14, 0.82)';
         ctx.lineWidth = Math.max(1, rect.step * 0.035);
         ctx.beginPath();
-        for (let i = 0; i < n; i++) {
-            const p = rect.x + i * rect.step;
-            ctx.moveTo(rect.x, p);
-            ctx.lineTo(rect.x + rect.span, p);
-            ctx.moveTo(p, rect.y);
-            ctx.lineTo(p, rect.y + rect.span);
+        if (this.logic.lattice === 'honeycomb') {
+            const drawn = new Set();
+            for (let y = 0; y < n; y++) {
+                for (let x = 0; x < n; x++) {
+                    const from = [x, y];
+                    const fromKey = from.join(',');
+                    const start = this.coordToPixel(from);
+                    for (const neighbor of this.logic.neighborsFromCoord(from)) {
+                        if (Math.abs(neighbor[0] - x) > 1 || Math.abs(neighbor[1] - y) > 1) continue;
+                        const toKey = neighbor.join(',');
+                        const edgeKey = [fromKey, toKey].sort().join('|');
+                        if (drawn.has(edgeKey)) continue;
+                        drawn.add(edgeKey);
+                        const end = this.coordToPixel(neighbor);
+                        ctx.moveTo(start.x, start.y);
+                        ctx.lineTo(end.x, end.y);
+                    }
+                }
+            }
+        } else {
+            for (let i = 0; i < n; i++) {
+                const p = rect.x + i * rect.step;
+                ctx.moveTo(rect.x, p);
+                ctx.lineTo(rect.x + rect.span, p);
+                ctx.moveTo(p, rect.y);
+                ctx.lineTo(p, rect.y + rect.span);
+            }
         }
         ctx.stroke();
 
@@ -338,7 +362,7 @@ class Go2DApp {
         if (this.logic.topology === 'klein') this.drawKleinBoundary(rect);
         if (this.logic.topology === 'random') this.drawRandomBoundary(rect);
 
-        for (const [x, y] of this.starPoints(n)) {
+        for (const [x, y] of this.logic.lattice === 'honeycomb' ? [] : this.starPoints(n)) {
             const p = this.coordToPixel([x, y]);
             ctx.beginPath();
             ctx.arc(p.x, p.y, Math.max(3, rect.step * 0.09), 0, Math.PI * 2);
@@ -530,6 +554,7 @@ class Go2DApp {
         this.sizeSelect.disabled = true;
         if (this.customSizeInput) this.customSizeInput.disabled = true;
         this.boundarySelect.disabled = true;
+        this.latticeSelect.disabled = true;
         this.timerSelect.disabled = true;
     }
 
@@ -539,6 +564,7 @@ class Go2DApp {
         this.sizeSelect.disabled = false;
         if (this.customSizeInput) this.customSizeInput.disabled = false;
         this.boundarySelect.disabled = false;
+        this.latticeSelect.disabled = false;
         this.timerSelect.disabled = false;
     }
 
@@ -548,6 +574,7 @@ class Go2DApp {
         this.sizeSelect.disabled = locked;
         if (this.customSizeInput) this.customSizeInput.disabled = locked;
         this.boundarySelect.disabled = locked;
+        this.latticeSelect.disabled = locked;
         this.timerSelect.disabled = locked;
     }
 
@@ -570,13 +597,16 @@ class Go2DApp {
         const klein = topology === 'klein';
         const random = topology === 'random';
         this.boundaryEl.textContent = random ? '2D RBC' : klein ? 'Klein' : periodic ? 'PBC x/y' : 'Standard';
-        this.boundaryInfoEl.textContent = random
+        const latticeText = this.logic.lattice === 'honeycomb'
+            ? ' Honeycomb uses three graph neighbors per interior point; groups, liberties, captures, and territory use those links.'
+            : ' Square uses the usual four orthogonal graph neighbors.';
+        this.boundaryInfoEl.textContent = (random
             ? '2D RBC uses one fixed random map from each boundary exit to another boundary point. The map is stored with the game state.'
             : klein
             ? 'Klein bottle identifies left-right normally and top-bottom with x flipped: leaving at x enters at size - 1 - x.'
             : periodic
                 ? 'PBC identifies both left-right and top-bottom edges. Every point has periodic neighbors in both board directions.'
-                : 'Standard uses ordinary open board edges.';
+                : 'Standard uses ordinary open board edges.') + latticeText;
         this.turnEl.textContent = this.logic.gameOver ? this.resultText() : this.logic.scoringPending ? 'Counting pending' : `${this.capitalize(this.logic.currentPlayer)} to play`;
         this.blackCapturedEl.textContent = `${this.logic.captures.black} ${this.logic.captures.black === 1 ? 'stone' : 'stones'}`;
         this.whiteCapturedEl.textContent = `${this.logic.captures.white} ${this.logic.captures.white === 1 ? 'stone' : 'stones'}`;
@@ -716,6 +746,7 @@ class Go2DApp {
         return {
             variant: '2dgo',
             mode: normalizeTopology(this.boundarySelect.value),
+            lattice: this.latticeSelect.value,
             size: this.boardSize(),
             timer: Number(this.timerSelect.value) || 0
         };
@@ -737,6 +768,7 @@ class Go2DApp {
         this.logic.importState(state.logic);
         this.setSizeSelection(this.logic.size);
         this.boundarySelect.value = normalizeTopology(this.logic.topology);
+        this.latticeSelect.value = this.logic.lattice || 'square';
         this.timerSelect.value = String(state.timerValue ?? state.timeLimit ?? 0);
         this.timeLimit = Number(state.timeLimit) || 0;
         this.timeRemaining = {

@@ -29,6 +29,12 @@ const RAYS_2D = Object.freeze([
     Object.freeze([-1, -1])
 ]);
 
+const HONEYCOMB_DIRECTIONS = Object.freeze([
+    Object.freeze([1, 0]),
+    Object.freeze([-1, 0]),
+    Object.freeze([0, 1])
+]);
+
 const AXIS_4D = Object.freeze([
     Object.freeze([1, 0, 0, 0]),
     Object.freeze([-1, 0, 0, 0]),
@@ -123,21 +129,24 @@ function randomExitKey(coord, direction) {
     return `${coord[0]},${coord[1]}:${Math.sign(direction[0] || 0)},${Math.sign(direction[1] || 0)}`;
 }
 
-function createRandomBoundaryMap(width, height, directions, seed = randomSeed()) {
+function createRandomBoundaryMap(width, height, directions, seed = randomSeed(), lattice = 'square') {
     const rng = new SeededRandom(seed);
     const targets = boundaryTargets(width, height);
     const entries = [];
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             for (const direction of directions) {
-                const raw = [x + (direction[0] || 0), y + (direction[1] || 0)];
+                const resolvedDirection = lattice === 'honeycomb' && direction[0] === 0 && Math.abs(direction[1] || 0) === 1
+                    ? [0, x % 2 === 0 ? 1 : -1]
+                    : direction;
+                const raw = [x + (resolvedDirection[0] || 0), y + (resolvedDirection[1] || 0)];
                 if (inside(raw, [width, height])) continue;
                 let target = targets[rng.integer(targets.length)] || [x, y];
                 if (targets.length > 1 && target[0] === x && target[1] === y) {
                     const currentIndex = targets.findIndex(([tx, ty]) => tx === target[0] && ty === target[1]);
                     target = targets[(currentIndex + 1) % targets.length];
                 }
-                entries.push([randomExitKey([x, y], direction), target]);
+                entries.push([randomExitKey([x, y], resolvedDirection), target]);
             }
         }
     }
@@ -207,6 +216,7 @@ function normalizeRP2Coord(rawCoord, sizes) {
 
 function create2DTopology(config) {
     const name = config.topology;
+    const lattice = String(config.lattice || 'square').toLowerCase() === 'honeycomb' ? 'honeycomb' : 'square';
     const width = integer(config.width, 8, 2, 32);
     const height = integer(config.height, 8, 2, 32);
     const sizes = [width, height];
@@ -217,7 +227,7 @@ function create2DTopology(config) {
     const randomBoundaryMap = name === 'random_boundary'
         ? new Map(Array.isArray(config.randomBoundaryMap)
             ? config.randomBoundaryMap
-            : createRandomBoundaryMap(width, height, RAYS_2D, randomBoundarySeed))
+            : createRandomBoundaryMap(width, height, lattice === 'honeycomb' ? HONEYCOMB_DIRECTIONS : RAYS_2D, randomBoundarySeed, lattice))
         : new Map();
 
     function normalize(rawCoord) {
@@ -236,9 +246,12 @@ function create2DTopology(config) {
     function step(fromCoord, direction) {
         const from = normalize(fromCoord);
         if (!from) return null;
-        const rawTo = addCoord(from, direction);
+        const resolvedDirection = lattice === 'honeycomb' && direction[0] === 0 && Math.abs(direction[1] || 0) === 1
+            ? [0, from[0] % 2 === 0 ? 1 : -1]
+            : direction;
+        const rawTo = addCoord(from, resolvedDirection);
         if (name === 'random_boundary' && !inside(rawTo, sizes)) {
-            const target = randomBoundaryMap.get(randomExitKey(from, direction));
+            const target = randomBoundaryMap.get(randomExitKey(from, resolvedDirection));
             if (!target) return null;
             return {
                 coord: [...target],
@@ -247,7 +260,7 @@ function create2DTopology(config) {
                     from,
                     rawTo,
                     to: target,
-                    direction,
+                    direction: resolvedDirection,
                     wrap: {},
                     twisted: false
                 })
@@ -265,7 +278,7 @@ function create2DTopology(config) {
                 from,
                 rawTo,
                 to,
-                direction,
+                direction: resolvedDirection,
                 wrap: { x: wrapX, y: wrapY },
                 twisted
             })
@@ -278,6 +291,7 @@ function create2DTopology(config) {
         sizes,
         width,
         height,
+        lattice,
         randomBoundarySeed,
         randomBoundaryMap,
         maxRaySteps: width * height + 4,
@@ -291,10 +305,10 @@ function create2DTopology(config) {
             return enumerateVertices(sizes);
         },
         directions() {
-            return CARDINAL_2D.map((direction) => [...direction]);
+            return (lattice === 'honeycomb' ? HONEYCOMB_DIRECTIONS : CARDINAL_2D).map((direction) => [...direction]);
         },
         rayDirections() {
-            return RAYS_2D.map((direction) => [...direction]);
+            return (lattice === 'honeycomb' ? HONEYCOMB_DIRECTIONS : RAYS_2D).map((direction) => [...direction]);
         },
         step,
         neighbors(coord) {
@@ -337,12 +351,13 @@ function create2DTopology(config) {
             });
         },
         seamSummary() {
-            if (name === 'flat') return 'Standard boundary: rays stop at the edge.';
-            if (name === 'random_boundary') return '2D RBC: each boundary exit maps to one fixed random boundary square for this game.';
-            if (name === 'sphere_latitude') return 'Sphere latitude graph: longitude wraps, top and bottom latitude rings stop.';
-            if (name === 'torus') return 'Torus: x and y wrap periodically.';
-            if (name === 'klein_bottle') return 'Klein bottle: x wraps normally, y wraps with x flip and H/twist seam transport.';
-            if (name === 'rp2') return 'RP2: every boundary crossing uses antipodal identification with H/twist seam transport.';
+            const latticeText = lattice === 'honeycomb' ? ' Honeycomb lattice: each interior vertex has three graph neighbors.' : '';
+            if (name === 'flat') return 'Standard boundary: rays stop at the edge.' + latticeText;
+            if (name === 'random_boundary') return '2D RBC: each boundary exit maps to one fixed random boundary square for this game.' + latticeText;
+            if (name === 'sphere_latitude') return 'Sphere latitude graph: longitude wraps, top and bottom latitude rings stop.' + latticeText;
+            if (name === 'torus') return 'Torus: x and y wrap periodically.' + latticeText;
+            if (name === 'klein_bottle') return 'Klein bottle: x wraps normally, y wraps with x flip and H/twist seam transport.' + latticeText;
+            if (name === 'rp2') return 'RP2: every boundary crossing uses antipodal identification with H/twist seam transport.' + latticeText;
             return '';
         }
     };

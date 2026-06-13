@@ -37,6 +37,10 @@ function wrap(value, size) {
     return ((value % size) + size) % size;
 }
 
+function normalizeLattice(lattice) {
+    return String(lattice || '').toLowerCase() === 'honeycomb' ? 'honeycomb' : 'square';
+}
+
 function randomSeed() {
     return `go-random-boundary:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 }
@@ -80,10 +84,11 @@ export class GoGameLogic {
         this.reset(options);
     }
 
-    reset({ size = 9, dimension = 2, topology = 'open2d', komi = 7.5, randomBoundarySeed = '', randomBoundaryMap = null } = {}) {
+    reset({ size = 9, dimension = 2, topology = 'open2d', lattice = 'square', komi = 7.5, randomBoundarySeed = '', randomBoundaryMap = null } = {}) {
         this.size = Number(size) || 9;
         this.dimension = Number(dimension) || 2;
         this.topology = normalizeTopology(topology);
+        this.lattice = this.dimension === 2 ? normalizeLattice(lattice) : 'square';
         this.komi = Number.isFinite(Number(komi)) ? Number(komi) : 7.5;
         this.randomBoundarySeed = this.topology === 'random' ? (randomBoundarySeed || randomSeed()) : '';
         this.randomBoundaryMap = this.topology === 'random'
@@ -170,6 +175,14 @@ export class GoGameLogic {
 
     neighborsFromCoord(coord) {
         const neighbors = [];
+        if (this.dimension === 2 && this.lattice === 'honeycomb') {
+            const verticalDelta = coord[0] % 2 === 0 ? 1 : -1;
+            for (const [axis, delta] of [[0, -1], [0, 1], [1, verticalDelta]]) {
+                const next = this.stepCoord(coord, axis, delta);
+                if (next) neighbors.push(next);
+            }
+            return [...new Map(neighbors.map((neighbor) => [this.coordKey(neighbor), neighbor])).values()];
+        }
         for (let axis = 0; axis < this.dimension; axis++) {
             for (const delta of [-1, 1]) {
                 const next = this.stepCoord(coord, axis, delta);
@@ -399,6 +412,7 @@ export class GoGameLogic {
             size: this.size,
             dimension: this.dimension,
             topology: this.topology,
+            lattice: this.lattice,
             randomBoundarySeed: this.randomBoundarySeed,
             randomBoundaryMap: [...this.randomBoundaryMap.entries()],
             komi: this.komi,
@@ -424,6 +438,7 @@ export class GoGameLogic {
         this.size = Number(state.size) || 9;
         this.dimension = Number(state.dimension) || 2;
         this.topology = normalizeTopology(state.topology);
+        this.lattice = this.dimension === 2 ? normalizeLattice(state.lattice) : 'square';
         this.randomBoundarySeed = this.topology === 'random' ? (state.randomBoundarySeed || randomSeed()) : '';
         this.randomBoundaryMap = this.topology === 'random'
             ? new Map(Array.isArray(state.randomBoundaryMap) ? state.randomBoundaryMap : createRandomBoundaryMap(this.size, this.randomBoundarySeed))

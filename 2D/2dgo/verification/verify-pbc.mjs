@@ -32,6 +32,14 @@ assert.equal(seamGroup.group.size, 3, 'same-color stones should connect through 
 const open = new GoGameLogic({ size: 9, dimension: 2, topology: 'open2d' });
 assert.equal(open.neighborsFromCoord([0, 0]).length, 2, 'OBC corner should keep ordinary open edges');
 
+const honeycomb = new GoGameLogic({ size: 9, dimension: 2, topology: 'pbc', lattice: 'honeycomb' });
+assert.equal(honeycomb.neighborsFromCoord([4, 4]).length, 3, 'Honeycomb Go vertices should have three graph neighbors');
+assert.deepEqual(
+    [...neighborKeys(honeycomb, [4, 4])].sort(),
+    ['3,4', '4,5', '5,4'],
+    'Even honeycomb columns should connect to the next row'
+);
+
 const imported = new GoGameLogic();
 imported.importState({ ...periodic.exportState(), topology: 'pbc-x' });
 assert.equal(imported.topology, 'pbc', 'legacy pbc-x states should normalize to full PBC');

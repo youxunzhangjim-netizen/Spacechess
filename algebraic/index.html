@@ -40,6 +40,13 @@
                             <option value="flat_4d_grid">4D Grid</option>
                         </select>
                     </label>
+                    <label id="latticeControl">
+                        Lattice
+                        <select id="latticeSelect">
+                            <option value="square" selected>Square</option>
+                            <option value="honeycomb">Honeycomb</option>
+                        </select>
+                    </label>
                     <label id="physicalProblemControl">
                         Physical Problem
                         <select id="physicalProblemSelect">
@@ -105,6 +112,25 @@
                     </label>
                 </div>
                 <div class="control-fields algebra-mode-fields" id="anyonAlgebraControls" data-controls-mode="anyon" hidden>
+                    <label id="anyonSetupControl">
+                        Excitation
+                        <select id="anyonSetupSelect">
+                            <option value="standard" selected>Standard</option>
+                            <option value="excitation">Excitation Energy</option>
+                        </select>
+                    </label>
+                    <label id="anyonExcitationTypeControl" hidden>
+                        Excite Type
+                        <select id="anyonExcitationTypeSelect">
+                            <option value="e" selected>e</option>
+                            <option value="m">m</option>
+                            <option value="psi">ψ</option>
+                        </select>
+                    </label>
+                    <label id="anyonDropLossControl" hidden>
+                        Drop Loss
+                        <input id="anyonDropLossInput" type="number" min="0" max="1" step="0.05" value="0.25">
+                    </label>
                     <label id="braidMemoryControl">
                         Braid Memory
                         <select id="braidMemoryModeSelect">
@@ -309,6 +335,7 @@
                     <button id="unbraidHintButton" type="button">Unbraid Hint</button>
                     <button id="manualNoiseButton" type="button">Noise Tick</button>
                     <button id="manualTimeButton" type="button">Time Step</button>
+                    <button id="dropAnyonButton" type="button" hidden>Drop Anyon</button>
                     <button id="exportButton" type="button">Export JSON</button>
                 </div>
             </div>
@@ -358,6 +385,7 @@
                         <p><strong>Unbraiding:</strong> select a braided token. The valid target is marked with a green UNBRAID badge. Clicking that target applies the next inverse generator. Full unbraiding requires the reverse inverse sequence; a wrong target or wrong sign appends a new braid instead of clearing the word. A successful inverse also reduces the visible braid count.</p>
                         <p><strong>General Z_n phase:</strong> this option keeps toric-code token types but adds an observable braid phase k/n. A positive braid adds +1/n, an inverse unbraid subtracts 1/n, and the token shows the signed net phase as a flat shadow under the piece.</p>
                         <p><strong>Toric code fusion:</strong> e x e = 1, m x m = 1, &psi; x &psi; = 1, e x m = &psi;, e x &psi; = m, and m x &psi; = e. Fusion to 1 is vacuum fusion and removes or neutralizes the fused pair according to config.</p>
+                        <p><strong>Excitation Energy:</strong> both players start with 12 energy. The default toric gaps and excitation costs are &Delta;<sub>e</sub>=2, &Delta;<sub>m</sub>=2, and &Delta;<sub>&psi;</sub>=4. Exciting e, m, or &psi; on an empty vertex consumes one turn and its cost. Dropping an owned anyon or completing a vacuum fusion returns its gap energy after the configured loss rate.</p>
                         <p><strong>Non-Abelian fusion:</strong> Ising uses &sigma; x &sigma; = 1 + &psi;, &sigma; x &psi; = &sigma;, and &psi; x &psi; = 1. Fibonacci uses &tau; x &tau; = 1 + &tau;. Measurements can reveal hidden channels when measurement rules are enabled.</p>
                         <p><strong>Dynamics choices:</strong> Anyon noise can create pairs or flip e/m on configured noisy places. Anyon Floquet evaluates braid histories, activates fusion sites, moves twist defects, and can apply seam automorphisms such as e&lt;-&gt;m. Virasoro Floquet is available as a shared stress-field experiment on the underlying graph.</p>
                     </div>

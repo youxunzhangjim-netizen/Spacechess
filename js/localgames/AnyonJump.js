@@ -39,6 +39,7 @@ export const ANYON_JUMP_MODE = 'anyon_jump';
 
 const OWNERS = Object.freeze(['black', 'white']);
 const DEFAULT_TYPES = Object.freeze(['e', 'm', 'psi']);
+const DEFAULT_TORIC_GAPS = Object.freeze({ e: 2, m: 2, psi: 4, '1': 0 });
 
 function otherOwner(owner) {
     return owner === 'black' ? 'white' : 'black';
@@ -107,6 +108,13 @@ export class AnyonJumpGame {
         this.worldlines = new Map();
         this.braidTokens = { black: 0, white: 0 };
         this.score = { black: 0, white: 0 };
+        this.energy = {
+            black: Number(options.config?.excitationEnergy?.black ?? options.config?.initialEnergy ?? 12),
+            white: Number(options.config?.excitationEnergy?.white ?? options.config?.initialEnergy ?? 12)
+        };
+        this.anyonGaps = { ...DEFAULT_TORIC_GAPS, ...(options.config?.anyonGaps || {}) };
+        this.excitationCosts = { ...this.anyonGaps, ...(options.config?.excitationCosts || {}) };
+        this.dropLossRate = Math.max(0, Math.min(1, Number(options.config?.dropLossRate ?? 0.25)));
         this.parity = { black: 0, white: 0 };
         this.fusionOutcomes = [];
         this.history = [];
@@ -122,9 +130,18 @@ export class AnyonJumpGame {
             game: this
         });
         if (this.physicalProblem?.setupInitialState) this.physicalProblem.setupInitialState(this);
-        else this.setupInitialPosition();
+        else if (this.config.setupMode !== 'excitation') this.setupInitialPosition();
+        else this.setupExcitationMode();
         this.initialState = this.snapshotState('initial');
         this.physicalProblem?.start?.(this);
+    }
+
+    setupExcitationMode() {
+        const sizes = this.topology.sizes;
+        const center = this.topology.dimensions === 4
+            ? [Math.floor(sizes[0] / 2), Math.floor(sizes[1] / 2), Math.floor(sizes[2] / 2), Math.floor(sizes[3] / 2)]
+            : [Math.floor(sizes[0] / 2), Math.floor(sizes[1] / 2)];
+        this.fusionSites.add(coordKey(center));
     }
 
     setupInitialPosition() {
@@ -161,6 +178,7 @@ export class AnyonJumpGame {
         hiddenState = null,
         revealed = true,
         stability = 1,
+        energy = 0,
         anyonPhaseNumerator = 0,
         anyonPhaseDenominator = null
     }) {
@@ -181,7 +199,7 @@ export class AnyonJumpGame {
             revealed,
             stability: Number.isFinite(Number(stability)) ? Number(stability) : 1,
             age: 0,
-            energy: 0,
+            energy: Number.isFinite(Number(energy)) ? Number(energy) : 0,
             phaseLabel: 0,
             cooldown: 0,
             anyonPhaseNumerator: this.phaseEnabled()
@@ -196,6 +214,76 @@ export class AnyonJumpGame {
         this.tokens.set(tokenId, token);
         this.worldlines.set(tokenId, [cloneCoord(normalized)]);
         return token;
+    }
+
+    excitationCost(type) {
+        const normalized = normalizeAnyonType(type, this.config.anyonModel);
+        return Number(this.excitationCosts[normalized] ?? this.excitationCosts.psi ?? 4);
+    }
+
+    excitationGap(type) {
+        const normalized = normalizeAnyonType(type, this.config.anyonModel);
+        return Number(this.anyonGaps[normalized] ?? this.anyonGaps.psi ?? 4);
+    }
+
+    exciteAnyon(coord, type = this.config.excitationType || 'e', player = this.currentPlayer) {
+        if (this.config.setupMode !== 'excitation') return { ok: false, error: 'Excitation mode is off.' };
+        const normalized = this.topology.normalize(coord);
+        if (!normalized) return { ok: false, error: 'Choose a valid graph vertex.' };
+        if (this.tokenAt(normalized)) return { ok: false, error: 'That vertex already has an anyon.' };
+        const anyonType = normalizeAnyonType(type, this.config.anyonModel);
+        const cost = this.excitationCost(anyonType);
+        if ((this.energy[player] || 0) < cost) return { ok: false, error: `Not enough energy to excite ${anyonType}.` };
+        const token = this.addToken({
+            owner: player,
+            coord: normalized,
+            anyonType,
+            energy: this.excitationGap(anyonType)
+        });
+        if (!token) return { ok: false, error: 'Could not create anyon.' };
+        this.energy[player] -= cost;
+        this.moveNumber++;
+        const event = {
+            mode: this.mode,
+            number: this.moveNumber,
+            player,
+            kind: 'excite',
+            tokenId: token.id,
+            anyonType,
+            coord: normalized,
+            cost,
+            energyAfter: this.energy[player]
+        };
+        this.history.unshift(event);
+        this.currentPlayer = otherOwner(player);
+        return { ok: true, event };
+    }
+
+    dropAnyon(tokenId, player = this.currentPlayer) {
+        if (this.config.setupMode !== 'excitation') return { ok: false, error: 'Drop recovery is only available in excitation mode.' };
+        const token = this.tokens.get(tokenId);
+        if (!token) return { ok: false, error: 'Unknown token.' };
+        if (token.owner !== player) return { ok: false, error: 'Choose one of your own anyons.' };
+        const gap = this.excitationGap(token.anyonType);
+        const recovered = Math.max(0, gap * (1 - this.dropLossRate));
+        this.tokens.delete(token.id);
+        this.energy[player] += recovered;
+        this.moveNumber++;
+        const event = {
+            mode: this.mode,
+            number: this.moveNumber,
+            player,
+            kind: 'drop',
+            tokenId,
+            anyonType: token.anyonType,
+            coord: cloneCoord(token.coord),
+            recovered,
+            lossRate: this.dropLossRate,
+            energyAfter: this.energy[player]
+        };
+        this.history.unshift(event);
+        this.currentPlayer = otherOwner(player);
+        return { ok: true, event };
     }
 
     tokenAt(coord, exceptId = '') {
@@ -689,6 +777,7 @@ export class AnyonJumpGame {
             label,
             currentPlayer: this.currentPlayer,
             moveNumber: this.moveNumber,
+            energy: { ...this.energy },
             braidTokens: { ...this.braidTokens },
             score: { ...this.score },
             parity: { ...this.parity },
@@ -822,6 +911,14 @@ export class AnyonJumpGame {
             this.tokens.delete(token.id);
             this.tokens.delete(other.id);
             outcome.removed = [token.id, other.id];
+            if (this.config.setupMode === 'excitation') {
+                const firstRecovered = this.excitationGap(token.anyonType) * (1 - this.dropLossRate);
+                const secondRecovered = this.excitationGap(other.anyonType) * (1 - this.dropLossRate);
+                this.energy[token.owner] = (this.energy[token.owner] || 0) + firstRecovered;
+                this.energy[other.owner] = (this.energy[other.owner] || 0) + secondRecovered;
+                outcome.energyRecovered = firstRecovered + secondRecovered;
+                outcome.lossRate = this.dropLossRate;
+            }
         } else if (fusion.resolved) {
             mergeBraidMemory(token, other, this.config);
             token.anyonType = fusion.resolved;
@@ -843,6 +940,7 @@ export class AnyonJumpGame {
             },
             currentPlayer: this.currentPlayer,
             moveNumber: this.moveNumber,
+            energy: { ...this.energy },
             braidTokens: { ...this.braidTokens },
             score: { ...this.score },
             parity: { ...this.parity },

@@ -22,6 +22,10 @@ assert.equal(randomBoundary.name, 'random_boundary');
 assert.ok(randomExitA?.coord, 'Random boundary maps an off-board exit back to a boundary vertex.');
 assert.deepEqual(randomExitA.coord, randomExitB.coord, 'Random boundary map is static within a game.');
 assert.ok(randomBoundary.randomBoundaryLinks(4).length > 0, 'Random boundary exposes mapping links.');
+const honeycomb = createGraphTopology({ topology: 'flat', lattice: 'honeycomb', width: 6, height: 6 });
+assert.equal(honeycomb.lattice, 'honeycomb');
+assert.equal(honeycomb.neighbors([2, 2]).length, 3, 'Honeycomb interior vertex has three graph neighbors.');
+assert.deepEqual(honeycomb.rayDirections(), [[1, 0], [-1, 0], [0, 1]], 'Honeycomb rays use only graph-edge directions.');
 
 const reversi = new CliffordReversiGame({ topology: { topology: 'torus', width: 8, height: 8 } });
 const preview = reversi.previewMove([2, 3], 'black', 'H');
@@ -70,6 +74,24 @@ const randomJump = new AnyonJumpGame({
 });
 assert.equal(randomJump.topology.name, 'random_boundary', 'Anyon Jump supports random boundary topology.');
 assert.ok(randomJump.legalActions('black').length > 0, 'Random-boundary Anyon Jump exposes legal actions.');
+const excitation = new AnyonJumpGame({
+    topology: { topology: 'flat', lattice: 'honeycomb', width: 6, height: 6 },
+    config: {
+        setupMode: 'excitation',
+        excitationEnergy: { black: 6, white: 6 },
+        anyonGaps: { e: 2, m: 2, psi: 4 },
+        excitationCosts: { e: 2, m: 2, psi: 4 },
+        dropLossRate: 0.25
+    }
+});
+assert.equal(excitation.tokens.size, 0, 'Excitation mode starts without fixed anyons.');
+const exciteE = excitation.exciteAnyon([2, 2], 'e', 'black');
+assert.equal(exciteE.ok, true, 'Black can excite an e anyon.');
+assert.equal(excitation.energy.black, 4, 'Exciting e costs its toric-code gap energy.');
+excitation.currentPlayer = 'black';
+const dropE = excitation.dropAnyon(exciteE.event.tokenId, 'black');
+assert.equal(dropE.ok, true, 'Dropping an anyon recovers energy.');
+assert.equal(excitation.energy.black, 5.5, 'Drop recovery applies the configured loss rate.');
 
 const exact = new AnyonJumpGame({
     topology: { topology: 'torus', width: 4, height: 4 },

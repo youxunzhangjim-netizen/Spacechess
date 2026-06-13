@@ -14,6 +14,8 @@ const els = {
     physicalProblemControl: document.querySelector('#physicalProblemControl'),
     physicalProblemSelect: document.querySelector('#physicalProblemSelect'),
     topologySelect: document.querySelector('#topologySelect'),
+    latticeControl: document.querySelector('#latticeControl'),
+    latticeSelect: document.querySelector('#latticeSelect'),
     widthInput: document.querySelector('#widthInput'),
     heightInput: document.querySelector('#heightInput'),
     geometryDetails: document.querySelector('#geometryDetails'),
@@ -33,6 +35,12 @@ const els = {
     braidMemoryControl: document.querySelector('#braidMemoryControl'),
     braidMemoryModeSelect: document.querySelector('#braidMemoryModeSelect'),
     anyonModelControl: document.querySelector('#anyonModelControl'),
+    anyonSetupControl: document.querySelector('#anyonSetupControl'),
+    anyonSetupSelect: document.querySelector('#anyonSetupSelect'),
+    anyonExcitationTypeControl: document.querySelector('#anyonExcitationTypeControl'),
+    anyonExcitationTypeSelect: document.querySelector('#anyonExcitationTypeSelect'),
+    anyonDropLossControl: document.querySelector('#anyonDropLossControl'),
+    anyonDropLossInput: document.querySelector('#anyonDropLossInput'),
     anyonModelSelect: document.querySelector('#anyonModelSelect'),
     anyonGradeControl: document.querySelector('#anyonGradeControl'),
     anyonGradeInput: document.querySelector('#anyonGradeInput'),
@@ -76,6 +84,7 @@ const els = {
     unbraidHintButton: document.querySelector('#unbraidHintButton'),
     manualNoiseButton: document.querySelector('#manualNoiseButton'),
     manualTimeButton: document.querySelector('#manualTimeButton'),
+    dropAnyonButton: document.querySelector('#dropAnyonButton'),
     rulesIntroButton: document.querySelector('#rulesIntroButton'),
     rulesIntroPanel: document.querySelector('#rulesIntroPanel'),
     exportButton: document.querySelector('#exportButton'),
@@ -208,6 +217,11 @@ function syncModeControls() {
     els.braidMemoryControl.hidden = !isAnyon;
     els.anyonModelControl.hidden = !isAnyon;
     if (els.anyonGradeControl) els.anyonGradeControl.hidden = !isAnyon || els.anyonModelSelect.value !== 'zn_phase';
+    if (els.anyonSetupControl) els.anyonSetupControl.hidden = !isAnyon;
+    const excitationMode = isAnyon && els.anyonSetupSelect?.value === 'excitation';
+    if (els.anyonExcitationTypeControl) els.anyonExcitationTypeControl.hidden = !excitationMode;
+    if (els.anyonDropLossControl) els.anyonDropLossControl.hidden = !excitationMode;
+    if (els.dropAnyonButton) els.dropAnyonButton.hidden = !excitationMode;
     if (isAnyon && els.anyonModelSelect.value === 'zn_phase'
         && els.braidMemoryModeSelect.value === 'nonabelian_fusion_channel') {
         els.braidMemoryModeSelect.value = 'word_exact';
@@ -257,8 +271,12 @@ function syncModeControls() {
 }
 
 function topologyConfig() {
+    const topology = els.topologySelect.value;
+    const lattice = topology === 'flat_4d_grid' ? 'square' : (els.latticeSelect?.value || 'square');
+    if (els.latticeControl) els.latticeControl.hidden = topology === 'flat_4d_grid';
     return {
-        topology: els.topologySelect.value,
+        topology,
+        lattice,
         width: Number(els.widthInput.value),
         height: Number(els.heightInput.value),
         nx: Number(els.widthInput.value),
@@ -353,6 +371,12 @@ function anyonConfig() {
         anyonModel: useGeneralPhase ? 'toric_code' : selectedAnyonModel,
         phaseModel: useGeneralPhase ? 'zn_phase' : 'off',
         generalAnyonGrade: Math.max(2, Math.min(64, Math.floor(Number(els.anyonGradeInput?.value) || 5))),
+        setupMode: els.anyonSetupSelect?.value === 'excitation' ? 'excitation' : 'standard',
+        excitationType: els.anyonExcitationTypeSelect?.value || 'e',
+        excitationEnergy: { black: 12, white: 12 },
+        anyonGaps: { e: 2, m: 2, psi: 4 },
+        excitationCosts: { e: 2, m: 2, psi: 4 },
+        dropLossRate: Math.max(0, Math.min(1, Number(els.anyonDropLossInput?.value) || 0)),
         braidMemoryMode: els.braidMemoryModeSelect.value,
         braidCancellationMode: els.braidCancellationModeSelect.value,
         requireReverseInverseOrder: true,
@@ -794,7 +818,8 @@ function renderAnyonToken(cell, coord) {
     const measured = token.measurementHistory?.length ? `; measurements ${token.measurementHistory.length}` : '';
     const phaseInfo = phase.enabled ? `; Z_${phase.denominator} phase ${phase.active ? phase.text : '0'}` : '';
     const braidInfo = ` status ${braidStatusLabel(token)}; parity ${parity}; braid word ${word}; required inverse ${required}${phaseInfo}${channelInfo}${measured}${inverseInfo}`;
-    node.title = `${token.id} ${token.owner} ${anyonDisplay(token.anyonType)} (${token.anyonType});${braidInfo}; ${game.time?.tooltipForEntity(token) || ''}`;
+    const energyInfo = game.config?.setupMode === 'excitation' ? `; gap ${game.excitationGap?.(token.anyonType) ?? 0}` : '';
+    node.title = `${token.id} ${token.owner} ${anyonDisplay(token.anyonType)} (${token.anyonType})${energyInfo};${braidInfo}; ${game.time?.tooltipForEntity(token) || ''}`;
     cell.append(node);
 }
 
@@ -900,6 +925,18 @@ function handleCellClick(coord) {
         render();
         return;
     }
+    if (!token && game.config?.setupMode === 'excitation') {
+        const result = game.exciteAnyon(coord, els.anyonExcitationTypeSelect.value, game.currentPlayer);
+        els.statusText.textContent = result.ok
+            ? `${capitalize(result.event.player)} excited ${anyonDisplay(result.event.anyonType)} at (${result.event.coord.join(',')}); energy ${formatNumber(result.event.energyAfter)}.`
+            : result.error;
+        if (result.ok) {
+            selectedToken = '';
+            hoverCoord = null;
+        }
+        render();
+        return;
+    }
     if (!selectedToken) {
         els.statusText.textContent = 'Select one of your anyons first.';
         return;
@@ -982,6 +1019,23 @@ function applyTimeNow() {
     render();
 }
 
+function dropSelectedAnyon() {
+    if (game.mode !== 'anyon_jump' || game.config?.setupMode !== 'excitation') {
+        els.statusText.textContent = 'Drop recovery is only available in Anyon excitation mode.';
+        return;
+    }
+    if (!selectedToken) {
+        els.statusText.textContent = 'Select one of your anyons to drop.';
+        return;
+    }
+    const result = game.dropAnyon(selectedToken, game.currentPlayer);
+    els.statusText.textContent = result.ok
+        ? `${capitalize(result.event.player)} dropped ${result.event.tokenId}; recovered ${formatNumber(result.event.recovered)} energy.`
+        : result.error;
+    if (result.ok) selectedToken = '';
+    render();
+}
+
 function rulesIntroIsOpen() {
     return els.rulesIntroPanel?.getAttribute('aria-hidden') !== 'true';
 }
@@ -1020,8 +1074,11 @@ function renderStats() {
         return;
     }
     const tokens = [...game.tokens.values()];
-    els.blackCount.textContent = tokens.filter((token) => token.owner === 'black').length;
-    els.whiteCount.textContent = tokens.filter((token) => token.owner === 'white').length;
+    const energyText = game.config?.setupMode === 'excitation'
+        ? (owner) => ` E=${formatNumber(game.energy?.[owner] || 0)}`
+        : () => '';
+    els.blackCount.textContent = `${tokens.filter((token) => token.owner === 'black').length}${energyText('black')}`;
+    els.whiteCount.textContent = `${tokens.filter((token) => token.owner === 'white').length}${energyText('white')}`;
     els.blackBraid.textContent = game.braidTokens.black;
     els.whiteBraid.textContent = game.braidTokens.white;
 }
@@ -1088,7 +1145,9 @@ function updateStatus() {
             : '';
         els.statusText.textContent = `Selected ${selectedToken}: ${braidStatusLabel(token)}, parity ${token?.braidParity || 0}, word ${braidWordToText(token?.braidWord || [])}${channelText}, ${actions.length} local move/jump option${actions.length === 1 ? '' : 's'}.${cancel}${inverse}${warning}`;
     } else {
-        els.statusText.textContent = 'Select an anyon, then hop to a neighbor or jump over an occupied vertex.';
+        els.statusText.textContent = game.config?.setupMode === 'excitation'
+            ? `${capitalize(game.currentPlayer)} energy ${formatNumber(game.energy?.[game.currentPlayer] || 0)}. Click an empty vertex to excite ${anyonDisplay(els.anyonExcitationTypeSelect.value)}, or select an anyon to braid/drop.`
+            : 'Select an anyon, then hop to a neighbor or jump over an occupied vertex.';
     }
 }
 
@@ -1121,7 +1180,10 @@ function renderLegend() {
             '? hidden until measured',
             'Blue path: jump line',
             'Braided marker: nontrivial memory',
-            'Green UNBRAID badge: next inverse loop'
+            'Green UNBRAID badge: next inverse loop',
+            game.config?.setupMode === 'excitation'
+                ? 'Excitation mode: e,m,ψ cost energy; drop/fusion recovers energy with loss'
+                : 'Standard mode: fixed initial anyon set'
         ];
     els.legend.innerHTML = items.map((item) => `<span>${item}</span>`).join('');
 }
@@ -1161,6 +1223,10 @@ function renderHistory() {
                     || event.unbraid.fusionChannel
                     || '';
                 item.textContent = `#${event.number} ${event.player} attempt_unbraid ${event.tokenId} around ${event.targetId}: ${result}, parity ${event.unbraid.braidParity}, word ${event.unbraid.afterLength}${channel ? `, channel ${channel}` : ''}.`;
+            } else if (event.kind === 'excite') {
+                item.textContent = `#${event.number} ${event.player} excited ${anyonDisplay(event.anyonType)} at ${event.coord.join(',')}; cost ${event.cost}.`;
+            } else if (event.kind === 'drop') {
+                item.textContent = `#${event.number} ${event.player} dropped ${event.tokenId}; recovered ${formatNumber(event.recovered)}.`;
             } else {
                 const braid = event.braid?.phase === -1 ? ' braid -1' : '';
                 const anyonPhase = event.braid?.anyonPhase?.after?.text
@@ -1320,6 +1386,7 @@ function capitalize(value) {
 for (const control of [
     els.modeSelect,
     els.topologySelect,
+    els.latticeSelect,
     els.widthInput,
     els.heightInput,
     els.zSizeInput,
@@ -1332,6 +1399,9 @@ for (const control of [
     els.anyonFlipSelect,
     els.braidMemoryModeSelect,
     els.anyonModelSelect,
+    els.anyonSetupSelect,
+    els.anyonExcitationTypeSelect,
+    els.anyonDropLossInput,
     els.anyonGradeInput,
     els.braidCancellationModeSelect,
     els.braidedPieceShieldSelect,
@@ -1362,6 +1432,7 @@ els.countButton.addEventListener('click', handleCount);
 els.unbraidHintButton.addEventListener('click', showUnbraidHint);
 els.manualNoiseButton.addEventListener('click', applyNoiseNow);
 els.manualTimeButton.addEventListener('click', applyTimeNow);
+els.dropAnyonButton.addEventListener('click', dropSelectedAnyon);
 els.rulesIntroButton.addEventListener('click', toggleRulesIntro);
 els.passButton.addEventListener('click', () => {
     if (game?.mode === 'clifford_reversi') {

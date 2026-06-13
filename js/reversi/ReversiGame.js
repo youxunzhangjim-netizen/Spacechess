@@ -96,20 +96,23 @@ function randomExitKey3D(coord, direction) {
     return `${coord[0]},${coord[1]},${coord[2] || 0}:${Math.sign(direction[0] || 0)},${Math.sign(direction[1] || 0)},${Math.sign(direction[2] || 0)}`;
 }
 
-function createRandomBoundaryMap(width, height, directions, seed = randomSeed()) {
+function createRandomBoundaryMap(width, height, directions, seed = randomSeed(), lattice = 'square') {
     const rng = new SeededRandom(seed);
     const targets = boundaryTargets(width, height);
     const entries = [];
     for (let y = 0; y < height; y += 1) {
         for (let x = 0; x < width; x += 1) {
             for (const direction of directions) {
-                const raw = [x + (direction[0] || 0), y + (direction[1] || 0)];
+                const resolvedDirection = lattice === 'honeycomb' && direction[0] === 0 && Math.abs(direction[1] || 0) === 1
+                    ? [0, x % 2 === 0 ? 1 : -1]
+                    : direction;
+                const raw = [x + (resolvedDirection[0] || 0), y + (resolvedDirection[1] || 0)];
                 if (raw[0] >= 0 && raw[0] < width && raw[1] >= 0 && raw[1] < height) continue;
                 let target = targets[rng.integer(targets.length)] || [x, y];
                 if (targets.length > 1 && target[0] === x && target[1] === y) {
                     target = targets[(targets.findIndex(([tx, ty]) => tx === target[0] && ty === target[1]) + 1) % targets.length];
                 }
-                entries.push([randomExitKey([x, y], direction), target]);
+                entries.push([randomExitKey([x, y], resolvedDirection), target]);
             }
         }
     }
@@ -162,6 +165,12 @@ function createDirections(dimension) {
     return directions;
 }
 
+const HONEYCOMB_DIRECTIONS = Object.freeze([
+    Object.freeze([1, 0]),
+    Object.freeze([-1, 0]),
+    Object.freeze([0, 1])
+]);
+
 function is3DReversiTopology(topology) {
     return topology === REVERSI_TOPOLOGIES.R3 ||
         topology === REVERSI_TOPOLOGIES.T3 ||
@@ -180,6 +189,9 @@ export function createReversiTopology(options = {}) {
         max: options.maxSize || 30
     });
     const dimension = is4DReversiTopology(topology) ? 4 : is3DReversiTopology(topology) ? 3 : 2;
+    const lattice = dimension === 2 && String(options.lattice || '').toLowerCase() === 'honeycomb'
+        ? 'honeycomb'
+        : 'square';
     const width = normalizeReversiSize(options.width ?? size, { fallback: size, min: 4, max: options.maxSize || 30 });
     const height = normalizeReversiSize(options.height ?? size, { fallback: size, min: 4, max: options.maxSize || 30 });
     const depth = dimension >= 3
@@ -188,7 +200,9 @@ export function createReversiTopology(options = {}) {
     const wSize = dimension === 4
         ? normalizeReversiSize(options.wSize ?? options.nw ?? size, { fallback: size, min: 4, max: options.maxSize || 30 })
         : 1;
-    const directions = createDirections(dimension);
+    const directions = lattice === 'honeycomb'
+        ? HONEYCOMB_DIRECTIONS.map((direction) => [...direction])
+        : createDirections(dimension);
     const hasRandomBoundary = topology === REVERSI_TOPOLOGIES.RANDOM || topology === REVERSI_TOPOLOGIES.R3_RANDOM;
     const randomBoundarySeed = hasRandomBoundary ? (options.randomBoundarySeed || randomSeed()) : '';
     const randomBoundaryMap = hasRandomBoundary
@@ -196,11 +210,12 @@ export function createReversiTopology(options = {}) {
             ? options.randomBoundaryMap
             : (topology === REVERSI_TOPOLOGIES.R3_RANDOM
                 ? createRandomBoundaryMap3D(width, height, depth, directions, randomBoundarySeed)
-                : createRandomBoundaryMap(width, height, directions, randomBoundarySeed)))
+                : createRandomBoundaryMap(width, height, directions, randomBoundarySeed, lattice)))
         : new Map();
 
     return {
         topology,
+        lattice,
         dimension,
         size,
         width,
@@ -251,10 +266,13 @@ export function createReversiTopology(options = {}) {
             return [x, y];
         },
         step(coord, direction) {
-            const next = coord.map((value, index) => value + (direction[index] || 0));
+            const resolvedDirection = lattice === 'honeycomb' && direction[0] === 0 && Math.abs(direction[1] || 0) === 1
+                ? [0, coord[0] % 2 === 0 ? 1 : -1]
+                : direction;
+            const next = coord.map((value, index) => value + (resolvedDirection[index] || 0));
             if (topology === REVERSI_TOPOLOGIES.RANDOM && dimension === 2) {
                 if (next[0] >= 0 && next[0] < width && next[1] >= 0 && next[1] < height) return next;
-                const target = randomBoundaryMap.get(randomExitKey(coord, direction));
+                const target = randomBoundaryMap.get(randomExitKey(coord, resolvedDirection));
                 return target ? [...target] : null;
             }
             if (topology === REVERSI_TOPOLOGIES.R3_RANDOM && dimension === 3) {
@@ -534,6 +552,7 @@ export class ReversiGame {
     exportState() {
         return {
             topology: this.topology.topology,
+            lattice: this.topology.lattice,
             size: this.topology.size,
             width: this.topology.width,
             height: this.topology.height,
@@ -555,6 +574,7 @@ export class ReversiGame {
         if (!state) return;
         this.topology = createReversiTopology({
             topology: state.topology,
+            lattice: state.lattice,
             size: state.size,
             width: state.width,
             height: state.height,
