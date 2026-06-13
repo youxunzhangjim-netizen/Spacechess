@@ -1,5 +1,9 @@
 import { fusionOutputs, normalizeAnyonType } from '../anyon/AnyonAlgebra.js';
 import {
+    hiddenFusionMeasurementForTokens,
+    revealHiddenFusionChannels
+} from '../anyon/NonabelianFusionMemory.js';
+import {
     normalizePauliLabel,
     pairToPauli,
     pauliToPair
@@ -395,13 +399,16 @@ export class ProbabilityEngine {
 
     measureAnyonTotalCharge({ tokens = [], player = 'system', model = 'toric_code', tick = this.nextTick() } = {}) {
         const input = tokens.map((token) => normalizeAnyonType(token?.anyonType, model));
-        let possible = input.length ? [input[0]] : ['1'];
-        for (const type of input.slice(1)) {
-            possible = possible.flatMap((current) => fusionOutputs(current, type, model));
+        const hiddenChannel = hiddenFusionMeasurementForTokens(tokens, model);
+        let possible = hiddenChannel?.possibleOutputs || (input.length ? [input[0]] : ['1']);
+        if (!hiddenChannel) {
+            for (const type of input.slice(1)) {
+                possible = possible.flatMap((current) => fusionOutputs(current, type, model));
+            }
         }
         possible = [...new Set(possible.length ? possible : ['1'])];
-        let trueResult = possible[0];
-        if (possible.length > 1) {
+        let trueResult = hiddenChannel?.trueResult || possible[0];
+        if (!hiddenChannel && possible.length > 1) {
             const sample = this.rng.next();
             const selectedIndex = Math.min(possible.length - 1, Math.floor(sample * possible.length));
             trueResult = possible[selectedIndex];
@@ -443,12 +450,16 @@ export class ProbabilityEngine {
             trueResult,
             reported,
             error: errorEvent.outcome.triggered,
+            hiddenFusionChannel: Boolean(hiddenChannel),
             targetTokenIds: tokens.map((token) => token.id).filter(Boolean)
         };
+        revealHiddenFusionChannels(tokens, measurement);
         for (const token of tokens) {
             if (!token) continue;
             token.revealed = true;
-            token.measurementHistory = [...(token.measurementHistory || []), measurement];
+            if (!token.measurementHistory?.includes(measurement)) {
+                token.measurementHistory = [...(token.measurementHistory || []), measurement];
+            }
         }
         this.markMeasuredVertices(tokens.map((token) => token.coord).filter(Boolean));
         this.measurements.push(measurement);

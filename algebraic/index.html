@@ -95,6 +95,15 @@
                         <select id="braidMemoryModeSelect">
                             <option value="abelian_parity">Abelian Parity</option>
                             <option value="word_exact" selected>Word Exact</option>
+                            <option value="nonabelian_fusion_channel">Non-Abelian Channel</option>
+                        </select>
+                    </label>
+                    <label id="anyonModelControl">
+                        Anyon Model
+                        <select id="anyonModelSelect">
+                            <option value="toric_code" selected>Toric Code</option>
+                            <option value="ising">Ising</option>
+                            <option value="fibonacci">Fibonacci</option>
                         </select>
                     </label>
                     <label id="braidCancellationControl">
@@ -216,6 +225,7 @@
                 <h2>Fusion Rules</h2>
                 <p><strong>Anyon Jump:</strong> tokens hop to adjacent empty vertices or jump over one occupied neighbor. Jumping over mutually nontrivial toric anyons can add braid tokens. On twist seams, e and m can exchange.</p>
                 <p><strong>Toric code fusion:</strong> e x e = 1, m x m = 1, psi x psi = 1, e x m = psi, e x psi = m, m x psi = e, and 1 x a = a. Vacuum fusion can remove the fused pair.</p>
+                <p><strong>Non-Abelian channels:</strong> Ising uses sigma x sigma = 1 + psi. Fibonacci uses tau x tau = 1 + tau. In non-Abelian braid memory, braid words update a hidden symbolic fusion channel; measurement reveals the current channel.</p>
             </div>
         </section>
 

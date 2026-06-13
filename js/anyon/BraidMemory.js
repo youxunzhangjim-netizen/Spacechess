@@ -1,3 +1,8 @@
+import {
+    applyNonabelianFusionTransition,
+    ensureNonabelianFusionMemory
+} from './NonabelianFusionMemory.js';
+
 export const BRAID_MEMORY_MODES = Object.freeze([
     'off',
     'abelian_parity',
@@ -240,10 +245,13 @@ export function attachBraidMemory(token, values = {}, config = {}) {
     token.braidedWith = Array.isArray(values.braidedWith)
         ? [...new Set(values.braidedWith.map((id) => String(id)))]
         : [];
+    if (normalizedConfig.braidMemoryMode === 'nonabelian_fusion_channel') {
+        ensureNonabelianFusionMemory(token, values, normalizedConfig);
+    }
     return defineBraidMemoryAccessors(token);
 }
 
-export function appendBraidGenerator(token, generator, config = {}) {
+export function appendBraidGenerator(token, generator, config = {}, context = {}) {
     const normalizedConfig = normalizeBraidMemoryConfig(config);
     attachBraidMemory(token, token, normalizedConfig);
     const beforeWord = token.braidWord.map((entry) => ({ ...entry }));
@@ -291,6 +299,12 @@ export function appendBraidGenerator(token, generator, config = {}) {
         && token.braidWord.length === Math.max(0, beforeWord.length - 1);
     const parityToggled = normalizedConfig.braidMemoryMode === 'abelian_parity'
         && beforeParity !== normalizeParity(token.braidParity);
+    const fusionChannelUpdate = normalizedConfig.braidMemoryMode === 'nonabelian_fusion_channel'
+        ? applyNonabelianFusionTransition(token, normalized, normalizedConfig, {
+            ...context,
+            cancelledInverse
+        })
+        : null;
 
     return {
         appended: normalized,
@@ -306,6 +320,9 @@ export function appendBraidGenerator(token, generator, config = {}) {
             ? normalizeParity(token.braidParity) === 0
             : token.braidWord.length === 0,
         braidWord: token.braidWord.map((entry) => ({ ...entry })),
+        fusionChannel: token.fusionChannel,
+        hiddenFusionState: token.hiddenFusionState,
+        fusionChannelUpdate,
         isBraided: token.isBraided
     };
 }
@@ -320,7 +337,7 @@ export function applyBraid(token, target, braidEvent = {}, config = {}) {
         targetId,
         tick: braidEvent.tick
     });
-    const memory = appendBraidGenerator(token, generator, config);
+    const memory = appendBraidGenerator(token, generator, config, { target });
     return {
         ...eventData,
         targetId,
@@ -330,18 +347,20 @@ export function applyBraid(token, target, braidEvent = {}, config = {}) {
         braidParity: memory.braidParity,
         parityToggled: memory.parityToggled,
         braidWord: memory.braidWord,
+        fusionChannel: memory.fusionChannel,
+        fusionChannelUpdate: memory.fusionChannelUpdate,
         isBraided: memory.isBraided
     };
 }
 
-export function attemptUnbraid(token, generator, config = {}) {
+export function attemptUnbraid(token, generator, config = {}, context = {}) {
     const normalizedConfig = normalizeBraidMemoryConfig(config);
     attachBraidMemory(token, token, normalizedConfig);
     const expected = nextRequiredUnbraidGenerator(token.braidWord);
     const normalized = createBraidGenerator(generator);
     const beforeLength = token.braidWord.length;
     const beforeParity = normalizeParity(token.braidParity);
-    const result = appendBraidGenerator(token, normalized, normalizedConfig);
+    const result = appendBraidGenerator(token, normalized, normalizedConfig, context);
     if (normalizedConfig.braidMemoryMode === 'abelian_parity') {
         return {
             action: 'attempt_unbraid',
@@ -356,6 +375,8 @@ export function attemptUnbraid(token, generator, config = {}) {
             fullyUnbraided: normalizeParity(token.braidParity) === 0,
             wrongOrder: false,
             braidWord: result.braidWord,
+            fusionChannel: result.fusionChannel,
+            fusionChannelUpdate: result.fusionChannelUpdate,
             isBraided: token.isBraided
         };
     }
@@ -375,6 +396,8 @@ export function attemptUnbraid(token, generator, config = {}) {
         fullyUnbraided: token.braidWord.length === 0,
         wrongOrder: beforeLength > 0 && !result.successfulPartialUnbraid,
         braidWord: result.braidWord,
+        fusionChannel: result.fusionChannel,
+        fusionChannelUpdate: result.fusionChannelUpdate,
         isBraided: token.isBraided
     };
 }

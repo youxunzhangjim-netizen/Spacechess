@@ -220,7 +220,7 @@ export class AnyonGameEngine {
 
         const beforeWord = token.braidWord.map((entry) => ({ ...entry }));
         const generator = this.braidGeneratorFor(token, targetId, { path, direction, sign, index });
-        const unbraid = applyUnbraidGenerator(token, generator, this.config);
+        const unbraid = applyUnbraidGenerator(token, generator, this.config, { target });
         const cost = this.config.unbraidActionCost;
         if (cost > 0) {
             this.turn += cost;

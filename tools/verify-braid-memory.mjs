@@ -16,6 +16,10 @@ import {
 import { detectTopologyBraidEvents } from '../js/anyon/BraidPathDetector.js';
 import { createRectTorusTopology } from '../js/anyon/AnyonTopology.js';
 import { createToricAnyonLoopsGame } from '../js/anyon/AnyonEngine.js';
+import {
+    fusionChannelDisplay,
+    nonabelianFusionChannels
+} from '../js/anyon/NonabelianFusionMemory.js';
 import { AnyonJumpGame } from '../js/localgames/AnyonJump.js';
 import { createGraphTopology } from '../js/topology/GraphTopologies.js';
 
@@ -84,6 +88,62 @@ const wrongExact = attemptUnbraid(exactToken, { generator: 'sigma', index: 1, si
 assert.equal(wrongExact.successfulPartialUnbraid, false);
 assert.equal(wrongExact.wrongOrder, true);
 assert.equal(exactToken.braidWord.length, 4, 'Wrong exact-word inverse attempts append.');
+
+assert.deepEqual(nonabelianFusionChannels('sigma', 'sigma', 'ising'), ['1', 'psi']);
+assert.deepEqual(nonabelianFusionChannels('tau', 'tau', 'fibonacci'), ['1', 'tau']);
+const nonabelianConfig = { braidMemoryMode: 'nonabelian_fusion_channel', anyonModel: 'ising' };
+const sigmaToken = attachBraidMemory(
+    { id: 's1', owner: 'black', anyonType: 'sigma', vertex: [0, 0] },
+    {},
+    nonabelianConfig
+);
+const sigmaTarget = { id: 's2', owner: 'white', anyonType: 'sigma', vertex: [1, 0] };
+const sigmaBraid = appendBraidGenerator(
+    sigmaToken,
+    { generator: 'sigma', index: 0, sign: 1, targetId: 's2' },
+    nonabelianConfig,
+    { target: sigmaTarget }
+);
+assert.equal(sigmaBraid.fusionChannelUpdate.beforeChannel, '1');
+assert.equal(sigmaBraid.fusionChannelUpdate.afterChannel, 'psi');
+assert.equal(fusionChannelDisplay(sigmaToken), '?', 'Non-Abelian fusion channel stays hidden until measured.');
+const sigmaWrong = attemptUnbraid(
+    sigmaToken,
+    { generator: 'sigma', index: 0, sign: 1, targetId: 's2' },
+    nonabelianConfig,
+    { target: sigmaTarget }
+);
+assert.equal(sigmaWrong.successfulPartialUnbraid, false);
+assert.equal(sigmaWrong.fusionChannelUpdate.afterChannel, '1', 'Wrong non-Abelian unbraid changes the hidden state further.');
+const sigmaRepairWrong = attemptUnbraid(
+    sigmaToken,
+    { generator: 'sigma', index: 0, sign: -1, targetId: 's2' },
+    nonabelianConfig,
+    { target: sigmaTarget }
+);
+assert.equal(sigmaRepairWrong.successfulPartialUnbraid, true);
+assert.equal(sigmaRepairWrong.fusionChannelUpdate.currentChannel, 'psi', 'Inverse of the wrong step restores the previous hidden channel.');
+const sigmaFullInverse = attemptUnbraid(
+    sigmaToken,
+    { generator: 'sigma', index: 0, sign: -1, targetId: 's2' },
+    nonabelianConfig,
+    { target: sigmaTarget }
+);
+assert.equal(sigmaFullInverse.fullyUnbraided, true);
+assert.equal(sigmaFullInverse.fusionChannelUpdate.currentChannel, '1', 'Full inverse sequence restores the original fusion channel.');
+
+const fibonacciToken = attachBraidMemory(
+    { id: 't1', owner: 'black', anyonType: 'tau', vertex: [0, 0] },
+    {},
+    { braidMemoryMode: 'nonabelian_fusion_channel', anyonModel: 'fibonacci' }
+);
+const fibonacciBraid = appendBraidGenerator(
+    fibonacciToken,
+    { generator: 'sigma', index: 0, sign: 1, targetId: 't2' },
+    { braidMemoryMode: 'nonabelian_fusion_channel', anyonModel: 'fibonacci' },
+    { target: { id: 't2', anyonType: 'tau' } }
+);
+assert.equal(fibonacciBraid.fusionChannelUpdate.afterChannel, 'tau');
 
 const relationWord = simplifyBraidWord([
     { generator: 'sigma', index: 3, sign: 1, targetId: 'far' },
@@ -201,6 +261,25 @@ assert.equal(exactWrong.event.unbraid.successfulPartialUnbraid, false);
 assert.equal(exactJump.tokens.get('x1').braidWord.length, 2);
 const exactRepair = exactJump.attemptUnbraid('x1', 'x2', { player: 'white', sign: -1 });
 assert.equal(exactRepair.ok, false, 'Only the moving token owner can unbraid.');
+
+const nonabelianJump = new AnyonJumpGame({
+    topology: { topology: 'torus', width: 4, height: 4 },
+    config: { braidMemoryMode: 'nonabelian_fusion_channel', anyonModel: 'ising' },
+    probability: { measurementErrorRate: 0 }
+});
+nonabelianJump.tokens.clear();
+nonabelianJump.worldlines.clear();
+nonabelianJump.addToken({ id: 'n1', owner: 'black', coord: [0, 0], anyonType: 'sigma' });
+nonabelianJump.addToken({ id: 'n2', owner: 'white', coord: [1, 0], anyonType: 'sigma' });
+const nonabelianJumpResult = nonabelianJump.move('n1', [2, 0]);
+assert.equal(nonabelianJumpResult.ok, true);
+assert.equal(nonabelianJump.tokens.get('n1').braidWord.length, 1);
+assert.equal(nonabelianJump.tokens.get('n1').hiddenFusionState.currentChannel, 'psi');
+assert.equal(nonabelianJump.tokens.get('n1').fusionChannel, '?');
+const nonabelianMeasurement = nonabelianJump.measureAnyonCharge(['n1'], 'black');
+assert.equal(nonabelianMeasurement.ok, true);
+assert.equal(nonabelianMeasurement.measurement.reported, 'psi');
+assert.equal(nonabelianJump.tokens.get('n1').fusionChannel, 'psi');
 
 const loopGame = createToricAnyonLoopsGame({ width: 4, height: 4 });
 loopGame.addToken({ id: 'e1', owner: 'black', vertex: [3, 0], anyonType: 'e' });

@@ -1,5 +1,6 @@
 import {
     applyAnyonAutomorphism,
+    anyonTypes,
     braidEffectForPhase,
     createFusionResult,
     mutualBraidPhase,
@@ -35,6 +36,13 @@ function otherOwner(owner) {
 
 function cloneCoord(coord) {
     return [...coord];
+}
+
+function defaultTypesForModel(model = 'toric_code') {
+    if (model === 'ising') return ['sigma', 'sigma', 'psi'];
+    if (model === 'fibonacci') return ['tau'];
+    const types = anyonTypes(model).filter((type) => type !== '1');
+    return types.length ? types : [...DEFAULT_TYPES];
 }
 
 export class AnyonJumpGame {
@@ -81,14 +89,15 @@ export class AnyonJumpGame {
         const w = this.topology.dimensions === 4 ? Math.floor(sizes[3] / 2) : null;
         const count = Math.min(width, 6);
         const offset = Math.floor((width - count) / 2);
+        const modelTypes = defaultTypesForModel(this.config.anyonModel);
 
         for (let i = 0; i < count; i++) {
             const x = offset + i;
-            const type = DEFAULT_TYPES[i % DEFAULT_TYPES.length];
+            const type = modelTypes[i % modelTypes.length];
             const blackCoord = this.topology.dimensions === 4 ? [x, yBlack, z, w] : [x, yBlack];
             const whiteCoord = this.topology.dimensions === 4 ? [x, yWhite, z, w] : [x, yWhite];
             this.addToken({ owner: 'black', coord: blackCoord, anyonType: type });
-            this.addToken({ owner: 'white', coord: whiteCoord, anyonType: DEFAULT_TYPES[(i + 1) % DEFAULT_TYPES.length] });
+            this.addToken({ owner: 'white', coord: whiteCoord, anyonType: modelTypes[(i + 1) % modelTypes.length] });
         }
 
         const center = this.topology.dimensions === 4
@@ -296,7 +305,7 @@ export class AnyonJumpGame {
             sign,
             index
         });
-        const unbraid = applyUnbraidGenerator(token, generator, this.config);
+        const unbraid = applyUnbraidGenerator(token, generator, this.config, { target });
         const cost = this.config.unbraidActionCost;
         if (cost > 0) {
             this.moveNumber += cost;

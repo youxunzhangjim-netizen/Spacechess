@@ -5,6 +5,7 @@ import {
     nextRequiredUnbraidGenerator,
     requiredInverseBraidWordText
 } from '../../js/anyon/BraidMemory.js';
+import { fusionChannelDisplay } from '../../js/anyon/NonabelianFusionMemory.js';
 
 const els = {
     modeSelect: document.querySelector('#modeSelect'),
@@ -22,6 +23,8 @@ const els = {
     transformControl: document.querySelector('#transformControl'),
     braidMemoryControl: document.querySelector('#braidMemoryControl'),
     braidMemoryModeSelect: document.querySelector('#braidMemoryModeSelect'),
+    anyonModelControl: document.querySelector('#anyonModelControl'),
+    anyonModelSelect: document.querySelector('#anyonModelSelect'),
     braidCancellationControl: document.querySelector('#braidCancellationControl'),
     braidCancellationModeSelect: document.querySelector('#braidCancellationModeSelect'),
     noiseModeSelect: document.querySelector('#noiseModeSelect'),
@@ -133,7 +136,12 @@ function timeConfig() {
 }
 
 function anyonConfig() {
+    if (els.braidMemoryModeSelect.value === 'nonabelian_fusion_channel'
+        && els.anyonModelSelect.value === 'toric_code') {
+        els.anyonModelSelect.value = 'ising';
+    }
     return {
+        anyonModel: els.anyonModelSelect.value,
         braidMemoryMode: els.braidMemoryModeSelect.value,
         braidCancellationMode: els.braidCancellationModeSelect.value,
         requireReverseInverseOrder: true
@@ -208,7 +216,9 @@ function render() {
     els.pauliControl.hidden = isAnyon;
     els.transformControl.hidden = isAnyon;
     els.braidMemoryControl.hidden = !isAnyon;
-    els.braidCancellationControl.hidden = !isAnyon || els.braidMemoryModeSelect.value !== 'word_exact';
+    els.anyonModelControl.hidden = !isAnyon;
+    els.braidCancellationControl.hidden = !isAnyon
+        || !['word_exact', 'nonabelian_fusion_channel'].includes(els.braidMemoryModeSelect.value);
     els.passButton.hidden = isAnyon;
     const is4D = els.topologySelect.value === 'flat_4d_grid';
     const noiseEnabled = els.noiseModeSelect.value !== 'off';
@@ -367,7 +377,10 @@ function renderAnyonToken(cell, coord) {
     const inverseInfo = parity === 1 || token.isBraided ? '; inverse loop available' : '';
     const word = braidWordToText(token.braidWord);
     const required = requiredInverseBraidWordText(token.braidWord);
-    const braidInfo = ` parity ${parity}; braid word ${word}; required inverse ${required}${inverseInfo}`;
+    const channel = fusionChannelDisplay(token);
+    const channelInfo = channel ? `; fusion channel ${channel}` : '';
+    const measured = token.measurementHistory?.length ? `; measurements ${token.measurementHistory.length}` : '';
+    const braidInfo = ` parity ${parity}; braid word ${word}; required inverse ${required}${channelInfo}${measured}${inverseInfo}`;
     node.title = `${token.id} ${token.owner} ${token.anyonType};${braidInfo}; ${game.time?.tooltipForEntity(token) || ''}`;
     cell.append(node);
 }
@@ -531,7 +544,9 @@ function updateStatus() {
             : '';
         const next = token ? nextRequiredUnbraidGenerator(token.braidWord) : null;
         const cancel = next ? ` Next cancel: ${braidWordToText([next])} around ${next.targetId}.` : '';
-        els.statusText.textContent = `Selected ${selectedToken}: parity ${token?.braidParity || 0}, word ${braidWordToText(token?.braidWord || [])}, ${actions.length} local move/jump option${actions.length === 1 ? '' : 's'}.${cancel}${inverse}`;
+        const channel = token ? fusionChannelDisplay(token) : '';
+        const channelText = channel ? `, channel ${channel}` : '';
+        els.statusText.textContent = `Selected ${selectedToken}: parity ${token?.braidParity || 0}, word ${braidWordToText(token?.braidWord || [])}${channelText}, ${actions.length} local move/jump option${actions.length === 1 ? '' : 's'}.${cancel}${inverse}`;
     } else {
         els.statusText.textContent = 'Select an anyon, then hop to a neighbor or jump over an occupied vertex.';
     }
@@ -540,7 +555,17 @@ function updateStatus() {
 function renderLegend() {
     const items = game.mode === 'clifford_reversi'
         ? ['X,Y,Z Pauli labels', '? hidden until measured', 'Gold outline: flip preview', 'H/S transforms on flips', 'Twisted seams apply H']
-        : ['e,m,psi toric anyons', '? hidden until measured', 'Blue path: jump line', 'Parity 1: braided marker', 'Click target: inverse loop'];
+        : [
+            els.anyonModelSelect.value === 'ising'
+                ? 'Ising anyons: 1, sigma, psi'
+                : els.anyonModelSelect.value === 'fibonacci'
+                    ? 'Fibonacci anyons: 1, tau'
+                    : 'e,m,psi toric anyons',
+            '? hidden until measured',
+            'Blue path: jump line',
+            'Braided marker: nontrivial memory',
+            'Click target: inverse loop'
+        ];
     els.legend.innerHTML = items.map((item) => `<span>${item}</span>`).join('');
 }
 
@@ -565,12 +590,19 @@ function renderHistory() {
                     : event.unbraid.successfulPartialUnbraid
                         ? 'partial inverse'
                         : 'wrong order';
-                item.textContent = `#${event.number} ${event.player} attempt_unbraid ${event.tokenId} around ${event.targetId}: ${result}, parity ${event.unbraid.braidParity}, word ${event.unbraid.afterLength}.`;
+                const channel = event.unbraid.fusionChannelUpdate?.currentChannel
+                    || event.unbraid.fusionChannelUpdate?.afterChannel
+                    || event.unbraid.fusionChannel
+                    || '';
+                item.textContent = `#${event.number} ${event.player} attempt_unbraid ${event.tokenId} around ${event.targetId}: ${result}, parity ${event.unbraid.braidParity}, word ${event.unbraid.afterLength}${channel ? `, channel ${channel}` : ''}.`;
             } else {
                 const braid = event.braid?.phase === -1 ? ' braid -1' : '';
+                const channel = event.braid?.fusionChannelUpdate?.afterChannel
+                    ? ` channel ${event.braid.fusionChannelUpdate.afterChannel}`
+                    : '';
                 const fusion = event.fusion?.resolved ? ` fusion ${event.fusion.input.join('x')}=${event.fusion.resolved}` : '';
                 const time = event.time?.applied ? ` t${event.time.after.tick} phase ${event.time.phase}` : '';
-                item.textContent = `#${event.number} ${event.player} ${event.kind} ${event.tokenId} -> ${event.to.join(',')}${braid}${fusion}${time}.`;
+                item.textContent = `#${event.number} ${event.player} ${event.kind} ${event.tokenId} -> ${event.to.join(',')}${braid}${channel}${fusion}${time}.`;
             }
         }
         els.historyList.append(item);
@@ -630,6 +662,7 @@ for (const control of [
     els.timeUpdateSelect,
     els.anyonFlipSelect,
     els.braidMemoryModeSelect,
+    els.anyonModelSelect,
     els.braidCancellationModeSelect
 ]) {
     control.addEventListener('change', createGame);
