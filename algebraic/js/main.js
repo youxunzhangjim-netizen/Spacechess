@@ -27,6 +27,10 @@ const els = {
     anyonModelSelect: document.querySelector('#anyonModelSelect'),
     braidCancellationControl: document.querySelector('#braidCancellationControl'),
     braidCancellationModeSelect: document.querySelector('#braidCancellationModeSelect'),
+    braidedCaptureDetails: document.querySelector('#braidedCaptureDetails'),
+    braidedPieceShieldSelect: document.querySelector('#braidedPieceShieldSelect'),
+    captureRequiresUnbraidSelect: document.querySelector('#captureRequiresUnbraidSelect'),
+    braidedPiecePenaltySelect: document.querySelector('#braidedPiecePenaltySelect'),
     noiseModeSelect: document.querySelector('#noiseModeSelect'),
     pauliNoiseControl: document.querySelector('#pauliNoiseControl'),
     pauliNoiseTypeSelect: document.querySelector('#pauliNoiseTypeSelect'),
@@ -144,7 +148,10 @@ function anyonConfig() {
         anyonModel: els.anyonModelSelect.value,
         braidMemoryMode: els.braidMemoryModeSelect.value,
         braidCancellationMode: els.braidCancellationModeSelect.value,
-        requireReverseInverseOrder: true
+        requireReverseInverseOrder: true,
+        braidedPieceShield: els.braidedPieceShieldSelect.value === 'on',
+        captureRequiresUnbraid: els.captureRequiresUnbraidSelect.value === 'on',
+        braidedPiecePenalty: els.braidedPiecePenaltySelect.value === 'on'
     };
 }
 
@@ -217,6 +224,7 @@ function render() {
     els.transformControl.hidden = isAnyon;
     els.braidMemoryControl.hidden = !isAnyon;
     els.anyonModelControl.hidden = !isAnyon;
+    els.braidedCaptureDetails.hidden = !isAnyon;
     els.braidCancellationControl.hidden = !isAnyon
         || !['word_exact', 'nonabelian_fusion_channel'].includes(els.braidMemoryModeSelect.value);
     els.passButton.hidden = isAnyon;
@@ -434,9 +442,15 @@ function handleCellClick(coord) {
     if (result.ok) {
         selectedToken = '';
         hoverCoord = null;
-        els.statusText.textContent = result.event.braid?.effect?.effect === 'add_braid_token'
-            ? 'Jump recorded a nontrivial braid token.'
-            : `${capitalize(result.event.kind)} completed${result.event.noise?.length ? `; ${result.event.noise.length} noise rolls logged` : ''}${result.event.time?.applied ? `; Floquet phase ${result.event.time.phase} applied` : ''}.`;
+        if (result.event.fusion?.blocked) {
+            els.statusText.textContent = `Capture blocked: ${result.event.fusion.reason}.`;
+        } else if (result.event.braid?.unbraid?.successfulPartialUnbraid) {
+            els.statusText.textContent = 'Inverse jump shortened the braid word.';
+        } else if (result.event.braid?.effect?.effect === 'add_braid_token') {
+            els.statusText.textContent = 'Jump recorded a nontrivial braid token.';
+        } else {
+            els.statusText.textContent = `${capitalize(result.event.kind)} completed${result.event.noise?.length ? `; ${result.event.noise.length} noise rolls logged` : ''}${result.event.time?.applied ? `; Floquet phase ${result.event.time.phase} applied` : ''}.`;
+        }
     } else {
         els.statusText.textContent = result.error;
     }
@@ -597,12 +611,17 @@ function renderHistory() {
                 item.textContent = `#${event.number} ${event.player} attempt_unbraid ${event.tokenId} around ${event.targetId}: ${result}, parity ${event.unbraid.braidParity}, word ${event.unbraid.afterLength}${channel ? `, channel ${channel}` : ''}.`;
             } else {
                 const braid = event.braid?.phase === -1 ? ' braid -1' : '';
+                const unbraid = event.braid?.unbraid?.successfulPartialUnbraid ? ' unbraid' : '';
                 const channel = event.braid?.fusionChannelUpdate?.afterChannel
                     ? ` channel ${event.braid.fusionChannelUpdate.afterChannel}`
                     : '';
-                const fusion = event.fusion?.resolved ? ` fusion ${event.fusion.input.join('x')}=${event.fusion.resolved}` : '';
+                const fusion = event.fusion?.blocked
+                    ? ` blocked ${event.fusion.reason}`
+                    : event.fusion?.resolved
+                        ? ` fusion ${event.fusion.input.join('x')}=${event.fusion.resolved}`
+                        : '';
                 const time = event.time?.applied ? ` t${event.time.after.tick} phase ${event.time.phase}` : '';
-                item.textContent = `#${event.number} ${event.player} ${event.kind} ${event.tokenId} -> ${event.to.join(',')}${braid}${channel}${fusion}${time}.`;
+                item.textContent = `#${event.number} ${event.player} ${event.kind} ${event.tokenId} -> ${event.to.join(',')}${braid}${unbraid}${channel}${fusion}${time}.`;
             }
         }
         els.historyList.append(item);
@@ -663,7 +682,10 @@ for (const control of [
     els.anyonFlipSelect,
     els.braidMemoryModeSelect,
     els.anyonModelSelect,
-    els.braidCancellationModeSelect
+    els.braidCancellationModeSelect,
+    els.braidedPieceShieldSelect,
+    els.captureRequiresUnbraidSelect,
+    els.braidedPiecePenaltySelect
 ]) {
     control.addEventListener('change', createGame);
 }

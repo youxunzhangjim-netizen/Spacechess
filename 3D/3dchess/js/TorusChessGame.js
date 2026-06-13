@@ -8,6 +8,11 @@ import {
     transportLabelAcrossEdges
 } from '../../../js/algebra/PauliAlgebra.js';
 import {
+    attachBraidedCaptureState,
+    braidedChessCaptureStatus,
+    normalizeBraidedCaptureConfig
+} from '../../../js/anyon/BraidedCapture.js';
+import {
     BOARD_WIDTH,
     createPiece,
     MAIN_ROW,
@@ -53,6 +58,8 @@ export class TorusChessGame {
         this.statusParams = {};
         this.chatMessages = [];
         this.cliffordChessEnabled = false;
+        this.braidedChessEnabled = false;
+        this.braidedChessConfig = normalizeBraidedCaptureConfig({});
 
         this.renderer = this.createRenderer();
         this.network = this.createNetwork();
@@ -445,7 +452,7 @@ export class TorusChessGame {
 
                     const targetPiece = this.getPiece(target.x, target.y, target.sheet);
                     if (targetPiece && targetPiece.color !== piece.color && targetPiece.type !== 'K') {
-                        if (this.isCliffordCaptureLegal(piece, targetPiece)) {
+                        if (this.isCaptureLegal(piece, targetPiece)) {
                             moves.push({ ...target, capture: true });
                         }
                     }
@@ -480,7 +487,9 @@ export class TorusChessGame {
 
                     const capturePos = this.enPassantTarget.capturePos;
                     const capturedPawn = capturePos ? this.getPiece(capturePos.x, capturePos.y, capturePos.sheet || 0) : null;
-                    if (capturedPawn?.color !== piece.color && capturedPawn?.type === 'P') {
+                    if (capturedPawn?.color !== piece.color
+                        && capturedPawn?.type === 'P'
+                        && this.isCaptureLegal(piece, capturedPawn)) {
                         moves.push({
                             ...target,
                             capture: true,
@@ -526,7 +535,7 @@ export class TorusChessGame {
 
                     if (target.color !== piece.color) {
                         if (forAttack || target.type !== 'K') {
-                            if (forAttack || this.isCliffordCaptureLegal(piece, target)) {
+                            if (forAttack || this.isCaptureLegal(piece, target)) {
                                 moves.push({ ...targetCoord, capture: true });
                             }
                         }
@@ -581,14 +590,40 @@ export class TorusChessGame {
         }
 
         if (targetPiece.color !== piece.color && (forAttack || targetPiece.type !== 'K')) {
-            if (forAttack || this.isCliffordCaptureLegal(piece, targetPiece)) {
+            if (forAttack || this.isCaptureLegal(piece, targetPiece)) {
                 moves.push({ ...target, capture: true });
             }
         }
     }
 
+    isCaptureLegal(attacker, defender) {
+        return this.isCliffordCaptureLegal(attacker, defender)
+            && this.isBraidedCaptureLegal(attacker, defender);
+    }
+
     isCliffordCaptureLegal(attacker, defender) {
         return !this.cliffordChessEnabled || canCliffordCapture(attacker, defender);
+    }
+
+    isBraidedCaptureLegal(attacker, defender) {
+        if (!this.braidedChessEnabled) return true;
+        return braidedChessCaptureStatus(attacker, defender, this.braidedChessConfig).legal;
+    }
+
+    enableBraidedChess(config = {}) {
+        this.braidedChessEnabled = true;
+        this.braidedChessConfig = normalizeBraidedCaptureConfig(config);
+        for (const cell of this.validCells()) {
+            const piece = this.getPiece(cell.x, cell.y, cell.sheet);
+            if (piece?.anyonType || piece?.braidWord || piece?.braidParity) {
+                attachBraidedCaptureState(piece, piece, this.braidedChessConfig);
+            }
+        }
+        return this.braidedChessConfig;
+    }
+
+    disableBraidedChess() {
+        this.braidedChessEnabled = false;
     }
 
     applyMoveCliffordTransport(piece, move) {

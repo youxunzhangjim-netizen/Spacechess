@@ -15,6 +15,12 @@ import {
     braidSignFromDirection,
     mergeBraidMemory
 } from '../anyon/BraidMemory.js';
+import {
+    attachBraidedCaptureState,
+    canCaptureBraidedEntity,
+    movementPenaltyActive,
+    recordUnbraidCaptureUnlock
+} from '../anyon/BraidedCapture.js';
 import { detectTopologyBraidEvents } from '../anyon/BraidPathDetector.js';
 import {
     coordKey,
@@ -131,6 +137,7 @@ export class AnyonJumpGame {
             noiseHistory: []
         };
         attachBraidMemory(token, {}, this.config);
+        attachBraidedCaptureState(token, {}, this.config);
         this.tokens.set(tokenId, token);
         this.worldlines.set(tokenId, [cloneCoord(normalized)]);
         return token;
@@ -185,10 +192,13 @@ export class AnyonJumpGame {
                 });
                 continue;
             }
+            if (movementPenaltyActive(token, this.config)) continue;
             const two = this.topology.step(one.coord, direction);
             if (!two) continue;
             const landingOccupant = this.tokenAt(two.coord, id);
-            const canLandForFusion = landingOccupant && this.isFusionSite(two.coord);
+            const canLandForFusion = landingOccupant
+                && this.isFusionSite(two.coord)
+                && canCaptureBraidedEntity(token, landingOccupant, this.config).legal;
             if (!landingOccupant || canLandForFusion) {
                 actions.push({
                     kind: 'jump',
@@ -248,6 +258,10 @@ export class AnyonJumpGame {
             };
         }
         const memory = applyBraidToMemory(movingToken, target, event, this.config);
+        const captureUnlockGranted = recordUnbraidCaptureUnlock(movingToken, event.targetId, {
+            successfulPartialUnbraid: memory.cancelledInverse,
+            fullyUnbraided: memory.fullyUnbraided
+        });
         const effect = braidEffectForPhase(phase, this.config);
         if (effect.effect !== 'none') this.applyBraidEffect(movingToken.owner, effect);
         return {
@@ -256,7 +270,15 @@ export class AnyonJumpGame {
             jumpedType: event.reason === 'jump_over' ? target?.anyonType : null,
             targetType: target?.anyonType || target?.type || event.reason,
             phase,
-            effect
+            effect,
+            captureUnlockGranted,
+            unbraid: memory.cancelledInverse || memory.fullyUnbraided
+                ? {
+                    successfulPartialUnbraid: memory.cancelledInverse,
+                    fullyUnbraided: memory.fullyUnbraided,
+                    targetId: event.targetId
+                }
+                : null
         };
     }
 
@@ -306,6 +328,7 @@ export class AnyonJumpGame {
             index
         });
         const unbraid = applyUnbraidGenerator(token, generator, this.config, { target });
+        const captureUnlockGranted = recordUnbraidCaptureUnlock(token, targetId, unbraid);
         const cost = this.config.unbraidActionCost;
         if (cost > 0) {
             this.moveNumber += cost;
@@ -321,7 +344,8 @@ export class AnyonJumpGame {
             path: resolvedPath,
             direction: resolvedDirection,
             beforeWord,
-            unbraid
+            unbraid,
+            captureUnlockGranted
         };
         this.history.unshift(event);
         return { ok: true, event };
@@ -339,7 +363,7 @@ export class AnyonJumpGame {
         return this.applyAction(action);
     }
 
-    applyAction(action) {
+    applyAction(action, options = {}) {
         const token = this.tokens.get(action.tokenId);
         if (!token) return { ok: false, error: 'Unknown token.' };
 
@@ -392,10 +416,40 @@ export class AnyonJumpGame {
                 .map((edge) => ({ from: edge.from, to: edge.to, automorphism: this.topology.seamTransform(edge) }))
         };
         this.history.unshift(event);
-        this.currentPlayer = otherOwner(token.owner);
+        if (!options.keepTurn) this.currentPlayer = otherOwner(token.owner);
         event.noise = this.maybeApplyNoise('after_move', token.owner);
         event.time = this.maybeApplyTime('after_move', token.owner);
         return { ok: true, event };
+    }
+
+    chainJump(tokenId, destinations = []) {
+        const token = this.tokens.get(tokenId);
+        if (!token) return { ok: false, error: 'Unknown token.', events: [] };
+        if (token.owner !== this.currentPlayer) return { ok: false, error: 'Choose one of your own anyons.', events: [] };
+        if (!Array.isArray(destinations) || destinations.length === 0) {
+            return { ok: false, error: 'Choose at least one jump landing for a chain jump.', events: [] };
+        }
+        const player = token.owner;
+        const events = [];
+        for (const destination of destinations) {
+            const normalized = this.topology.normalize(destination);
+            const action = normalized
+                ? this.legalActionsForToken(tokenId).find((candidate) =>
+                    candidate.kind === 'jump' && coordsEqual(candidate.to, normalized))
+                : null;
+            if (!action) {
+                return {
+                    ok: false,
+                    error: 'Chain jumps must continue with legal jump landings.',
+                    events
+                };
+            }
+            const result = this.applyAction(action, { keepTurn: true });
+            if (!result.ok) return { ...result, events };
+            events.push(result.event);
+        }
+        this.currentPlayer = otherOwner(player);
+        return { ok: true, events };
     }
 
     maybeApplyNoise(trigger, player = this.currentPlayer) {
@@ -461,11 +515,22 @@ export class AnyonJumpGame {
         if (!this.isFusionSite(token.coord)) return null;
 
         const other = occupants[0];
+        const captureStatus = canCaptureBraidedEntity(token, other, this.config, { consume: true });
+        if (!captureStatus.legal) {
+            return {
+                coord: cloneCoord(token.coord),
+                firstId: token.id,
+                secondId: other.id,
+                blocked: true,
+                reason: captureStatus.reason
+            };
+        }
         const fusion = createFusionResult(token.anyonType, other.anyonType, this.config);
         const outcome = {
             coord: cloneCoord(token.coord),
             firstId: token.id,
             secondId: other.id,
+            captureStatus,
             input: fusion.input,
             outputs: fusion.outputs,
             resolved: fusion.resolved,

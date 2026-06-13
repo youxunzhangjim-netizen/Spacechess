@@ -13,6 +13,12 @@ import {
     requiredInverseBraidWordText,
     simplifyBraidWord
 } from '../js/anyon/BraidMemory.js';
+import {
+    braidedChessCaptureStatus,
+    canCaptureBraidedEntity,
+    grantCaptureUnlock,
+    movementPenaltyActive
+} from '../js/anyon/BraidedCapture.js';
 import { detectTopologyBraidEvents } from '../js/anyon/BraidPathDetector.js';
 import { createRectTorusTopology } from '../js/anyon/AnyonTopology.js';
 import { createToricAnyonLoopsGame } from '../js/anyon/AnyonEngine.js';
@@ -145,6 +151,16 @@ const fibonacciBraid = appendBraidGenerator(
 );
 assert.equal(fibonacciBraid.fusionChannelUpdate.afterChannel, 'tau');
 
+const shieldedDefender = attachBraidMemory({ id: 'shielded', anyonType: 'e' }, {}, { braidMemoryMode: 'word_exact' });
+appendBraidGenerator(shieldedDefender, { generator: 'sigma', index: 0, sign: 1, targetId: 'a' }, { braidMemoryMode: 'word_exact' });
+assert.equal(canCaptureBraidedEntity({ id: 'attacker' }, shieldedDefender, { braidedPieceShield: true }).legal, false);
+assert.equal(canCaptureBraidedEntity({ id: 'attacker' }, shieldedDefender, { captureRequiresUnbraid: true }).reason, 'capture_requires_unbraid');
+const unlockedAttacker = { id: 'attacker' };
+grantCaptureUnlock(unlockedAttacker, 'shielded');
+assert.equal(canCaptureBraidedEntity(unlockedAttacker, shieldedDefender, { captureRequiresUnbraid: true }).legal, true);
+assert.equal(movementPenaltyActive(shieldedDefender, { braidedPiecePenalty: true }), true);
+assert.equal(braidedChessCaptureStatus(unlockedAttacker, shieldedDefender, { captureRequiresUnbraid: true }).legal, true);
+
 const relationWord = simplifyBraidWord([
     { generator: 'sigma', index: 3, sign: 1, targetId: 'far' },
     { generator: 'sigma', index: 0, sign: 1, targetId: 'near' }
@@ -262,6 +278,81 @@ assert.equal(exactJump.tokens.get('x1').braidWord.length, 2);
 const exactRepair = exactJump.attemptUnbraid('x1', 'x2', { player: 'white', sign: -1 });
 assert.equal(exactRepair.ok, false, 'Only the moving token owner can unbraid.');
 
+const chainJump = new AnyonJumpGame({
+    topology: { topology: 'flat', width: 6, height: 3 },
+    config: { braidMemoryMode: 'word_exact' }
+});
+chainJump.tokens.clear();
+chainJump.worldlines.clear();
+chainJump.addToken({ id: 'c1', owner: 'black', coord: [0, 1], anyonType: 'e' });
+chainJump.addToken({ id: 'c2', owner: 'white', coord: [1, 1], anyonType: 'm' });
+chainJump.addToken({ id: 'c3', owner: 'white', coord: [3, 1], anyonType: 'm' });
+const chainResult = chainJump.chainJump('c1', [[2, 1], [4, 1]]);
+assert.equal(chainResult.ok, true);
+assert.equal(chainResult.events.length, 2);
+assert.deepEqual(chainJump.tokens.get('c1').braidWord.map((entry) => entry.targetId), ['c2', 'c3']);
+assert.equal(chainJump.currentPlayer, 'white');
+
+const inverseJump = new AnyonJumpGame({
+    topology: { topology: 'flat', width: 4, height: 3 },
+    config: { braidMemoryMode: 'word_exact', captureRequiresUnbraid: true }
+});
+inverseJump.tokens.clear();
+inverseJump.worldlines.clear();
+inverseJump.addToken({ id: 'i1', owner: 'black', coord: [0, 1], anyonType: 'e' });
+inverseJump.addToken({ id: 'i2', owner: 'white', coord: [1, 1], anyonType: 'm' });
+assert.equal(inverseJump.move('i1', [2, 1]).ok, true);
+inverseJump.currentPlayer = 'black';
+const inverseResult = inverseJump.move('i1', [0, 1]);
+assert.equal(inverseResult.ok, true);
+assert.equal(inverseJump.tokens.get('i1').braidWord.length, 0);
+assert.equal(inverseResult.event.braid.unbraid.successfulPartialUnbraid, true);
+assert.equal(inverseJump.tokens.get('i1').captureUnlocks.includes('i2'), true);
+
+const shieldJump = new AnyonJumpGame({
+    topology: { topology: 'flat', width: 4, height: 3 },
+    config: { braidMemoryMode: 'word_exact', braidedPieceShield: true }
+});
+shieldJump.tokens.clear();
+shieldJump.worldlines.clear();
+shieldJump.fusionSites.add('2,1');
+shieldJump.addToken({ id: 'sA', owner: 'black', coord: [0, 1], anyonType: 'e' });
+shieldJump.addToken({ id: 'sOver', owner: 'white', coord: [1, 1], anyonType: 'm' });
+shieldJump.addToken({ id: 'sD', owner: 'white', coord: [2, 1], anyonType: 'm' });
+appendBraidGenerator(shieldJump.tokens.get('sD'), { generator: 'sigma', index: 0, sign: 1, targetId: 'x' }, shieldJump.config);
+assert.equal(shieldJump.legalActionsForToken('sA').some((action) => action.to[0] === 2 && action.to[1] === 1), false);
+
+const unlockJump = new AnyonJumpGame({
+    topology: { topology: 'flat', width: 4, height: 3 },
+    config: { braidMemoryMode: 'word_exact', captureRequiresUnbraid: true }
+});
+unlockJump.tokens.clear();
+unlockJump.worldlines.clear();
+unlockJump.fusionSites.add('2,1');
+unlockJump.addToken({ id: 'uA', owner: 'black', coord: [0, 1], anyonType: 'e' });
+unlockJump.addToken({ id: 'uOver', owner: 'white', coord: [1, 1], anyonType: 'm' });
+unlockJump.addToken({ id: 'uD', owner: 'white', coord: [2, 1], anyonType: 'm' });
+appendBraidGenerator(unlockJump.tokens.get('uD'), { generator: 'sigma', index: 0, sign: 1, targetId: 'x' }, unlockJump.config);
+appendBraidGenerator(unlockJump.tokens.get('uA'), { generator: 'sigma', index: 0, sign: 1, targetId: 'uD' }, unlockJump.config, { target: unlockJump.tokens.get('uD') });
+const unlockResult = unlockJump.attemptUnbraid('uA', 'uD', { player: 'black', sign: -1, index: 0 });
+assert.equal(unlockResult.ok, true);
+assert.equal(unlockResult.event.captureUnlockGranted, true);
+unlockJump.currentPlayer = 'black';
+assert.equal(unlockJump.legalActionsForToken('uA').some((action) => action.to[0] === 2 && action.to[1] === 1), true);
+
+const penaltyJump = new AnyonJumpGame({
+    topology: { topology: 'flat', width: 4, height: 3 },
+    config: { braidMemoryMode: 'word_exact', braidedPiecePenalty: true }
+});
+penaltyJump.tokens.clear();
+penaltyJump.worldlines.clear();
+penaltyJump.addToken({ id: 'pA', owner: 'black', coord: [0, 1], anyonType: 'e' });
+penaltyJump.addToken({ id: 'pOver', owner: 'white', coord: [1, 1], anyonType: 'm' });
+appendBraidGenerator(penaltyJump.tokens.get('pA'), { generator: 'sigma', index: 0, sign: 1, targetId: 'pOver' }, penaltyJump.config);
+const penaltyActions = penaltyJump.legalActionsForToken('pA');
+assert.equal(penaltyActions.some((action) => action.kind === 'jump'), false, 'Braided penalty removes jump movement.');
+assert.equal(penaltyActions.some((action) => action.kind === 'move'), true, 'Braided penalty still allows simple hops.');
+
 const nonabelianJump = new AnyonJumpGame({
     topology: { topology: 'torus', width: 4, height: 4 },
     config: { braidMemoryMode: 'nonabelian_fusion_channel', anyonModel: 'ising' },
@@ -292,5 +383,17 @@ assert.equal(loopGame.exportState().tokens.find((entry) => entry.id === 'e1').is
 const loopUnbraid = loopGame.attemptUnbraid('e1', 'cycle:x', { player: 'black', sign: 1 });
 assert.equal(loopUnbraid.ok, true);
 assert.equal(loopUnbraid.event.unbraid.fullyUnbraided, true);
+
+const shieldEngine = createToricAnyonLoopsGame({
+    width: 4,
+    height: 4,
+    config: { braidMemoryMode: 'word_exact', braidedPieceShield: true }
+});
+shieldEngine.addToken({ id: 'se1', owner: 'black', vertex: [0, 0], anyonType: 'e' });
+shieldEngine.addToken({ id: 'se2', owner: 'white', vertex: [1, 0], anyonType: 'm' });
+appendBraidGenerator(shieldEngine.tokens.get('se2'), { generator: 'sigma', index: 0, sign: 1, targetId: 'shield' }, shieldEngine.config);
+const shieldMove = shieldEngine.moveToken('se1', [1, 0], { player: 'black' });
+assert.equal(shieldMove.ok, false);
+assert.equal(shieldMove.error, 'braided_piece_shield');
 
 console.log('Braid memory verification passed.');

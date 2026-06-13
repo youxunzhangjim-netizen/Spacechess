@@ -114,6 +114,32 @@
                         </select>
                     </label>
                 </div>
+                <details class="control-details" id="braidedCaptureDetails">
+                    <summary>Braided capture</summary>
+                    <div class="control-fields three-col">
+                        <label>
+                            Shield
+                            <select id="braidedPieceShieldSelect">
+                                <option value="off" selected>Off</option>
+                                <option value="on">On</option>
+                            </select>
+                        </label>
+                        <label>
+                            Need Unbraid
+                            <select id="captureRequiresUnbraidSelect">
+                                <option value="off" selected>Off</option>
+                                <option value="on">On</option>
+                            </select>
+                        </label>
+                        <label>
+                            Penalty
+                            <select id="braidedPiecePenaltySelect">
+                                <option value="off" selected>Off</option>
+                                <option value="on">On</option>
+                            </select>
+                        </label>
+                    </div>
+                </details>
                 <button id="rulesIntroButton" type="button" aria-expanded="false" aria-controls="rulesIntroPanel">Rules Intro</button>
             </div>
 

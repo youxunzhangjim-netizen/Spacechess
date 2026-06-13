@@ -23,6 +23,11 @@ import {
     braidSignFromWinding,
     mergeBraidMemory
 } from './BraidMemory.js';
+import {
+    attachBraidedCaptureState,
+    canCaptureBraidedEntity,
+    recordUnbraidCaptureUnlock
+} from './BraidedCapture.js';
 import { detectTopologyBraidEvents } from './BraidPathDetector.js';
 
 export class AnyonGameEngine {
@@ -55,6 +60,7 @@ export class AnyonGameEngine {
             disabledTurns: 0
         };
         attachBraidMemory(token, metadata, this.config);
+        attachBraidedCaptureState(token, metadata, this.config);
         this.tokens.set(tokenId, token);
         this.worldlines.set(tokenId, [normalizedVertex]);
         return token;
@@ -82,6 +88,11 @@ export class AnyonGameEngine {
         const normalizedTo = this.normalizeVertex(toVertex);
         const legal = this.neighbors(token.vertex).some((neighbor) => sameVertex(neighbor, normalizedTo));
         if (!legal) return { ok: false, error: 'Anyon moves must follow one graph edge.' };
+        const occupantBeforeMove = this.tokenAt(normalizedTo, id);
+        if (occupantBeforeMove && confirmFusion) {
+            const captureStatus = canCaptureBraidedEntity(token, occupantBeforeMove, this.config);
+            if (!captureStatus.legal) return { ok: false, error: captureStatus.reason, captureStatus };
+        }
 
         const from = token.vertex;
         const rawPath = [from, normalizedTo];
@@ -155,6 +166,10 @@ export class AnyonGameEngine {
             };
         }
         const memory = applyBraidToMemory(movingToken, target, event, this.config);
+        const captureUnlockGranted = recordUnbraidCaptureUnlock(movingToken, event.targetId, {
+            successfulPartialUnbraid: memory.cancelledInverse,
+            fullyUnbraided: memory.fullyUnbraided
+        });
         const effect = braidEffectForPhase(phase, this.config);
         if (effect.effect !== 'none') this.applyBraidEffect(player, effect);
         return {
@@ -162,7 +177,8 @@ export class AnyonGameEngine {
             around: event.targetId,
             targetType: target?.anyonType || target?.type || event.reason,
             phase,
-            effect
+            effect,
+            captureUnlockGranted
         };
     }
 
@@ -221,6 +237,7 @@ export class AnyonGameEngine {
         const beforeWord = token.braidWord.map((entry) => ({ ...entry }));
         const generator = this.braidGeneratorFor(token, targetId, { path, direction, sign, index });
         const unbraid = applyUnbraidGenerator(token, generator, this.config, { target });
+        const captureUnlockGranted = recordUnbraidCaptureUnlock(token, targetId, unbraid);
         const cost = this.config.unbraidActionCost;
         if (cost > 0) {
             this.turn += cost;
@@ -234,7 +251,8 @@ export class AnyonGameEngine {
             path: path.map((vertex) => [...vertex]),
             direction: [...direction],
             beforeWord,
-            unbraid
+            unbraid,
+            captureUnlockGranted
         };
         this.events.push(event);
         return { ok: true, event };
@@ -245,7 +263,13 @@ export class AnyonGameEngine {
         const second = this.tokens.get(secondId);
         if (!first || !second) return null;
         const fusion = createFusionResult(first.anyonType, second.anyonType, this.config);
-        const result = { firstId, secondId, ...fusion };
+        const captureStatus = canCaptureBraidedEntity(first, second, this.config, { consume: true });
+        const result = { firstId, secondId, captureStatus, ...fusion };
+        if (!captureStatus.legal) {
+            result.blocked = true;
+            result.reason = captureStatus.reason;
+            return result;
+        }
 
         if (fusion.fusionChannel) {
             this.fusionChannels.push({ ...fusion.fusionChannel, tokenIds: [firstId, secondId] });
