@@ -75,7 +75,8 @@ class Go2DApp {
         if (['klein', 'kleingo', 'klein_bottle', 'klein-bottle'].includes(mode)) this.boundarySelect.value = 'klein';
         if (['random', 'random_boundary', 'random-boundary'].includes(mode)) this.boundarySelect.value = 'random';
         if (mode === 'obc' || mode === 'open2d') this.boundarySelect.value = 'open2d';
-        if (String(params.get('lattice') || '').toLowerCase() === 'honeycomb') this.latticeSelect.value = 'honeycomb';
+        const lattice = String(params.get('lattice') || '').toLowerCase();
+        if (lattice === 'honeycomb' || lattice === 'triangular') this.latticeSelect.value = lattice;
     }
 
     tryJoinSharedRoomFromUrl() {
@@ -328,7 +329,7 @@ class Go2DApp {
         ctx.strokeStyle = 'rgba(42, 27, 14, 0.82)';
         ctx.lineWidth = Math.max(1, rect.step * 0.035);
         ctx.beginPath();
-        if (this.logic.lattice === 'honeycomb') {
+        if (this.logic.lattice !== 'square') {
             const drawn = new Set();
             for (let y = 0; y < n; y++) {
                 for (let x = 0; x < n; x++) {
@@ -362,7 +363,7 @@ class Go2DApp {
         if (this.logic.topology === 'klein') this.drawKleinBoundary(rect);
         if (this.logic.topology === 'random') this.drawRandomBoundary(rect);
 
-        for (const [x, y] of this.logic.lattice === 'honeycomb' ? [] : this.starPoints(n)) {
+        for (const [x, y] of this.logic.lattice === 'square' ? this.starPoints(n) : []) {
             const p = this.coordToPixel([x, y]);
             ctx.beginPath();
             ctx.arc(p.x, p.y, Math.max(3, rect.step * 0.09), 0, Math.PI * 2);
@@ -599,7 +600,9 @@ class Go2DApp {
         this.boundaryEl.textContent = random ? '2D RBC' : klein ? 'Klein' : periodic ? 'PBC x/y' : 'Standard';
         const latticeText = this.logic.lattice === 'honeycomb'
             ? ' Honeycomb uses three graph neighbors per interior point; groups, liberties, captures, and territory use those links.'
-            : ' Square uses the usual four orthogonal graph neighbors.';
+            : this.logic.lattice === 'triangular'
+                ? ' Triangular uses six graph neighbors per interior point. A group is captured only after every exposed axial and diagonal liberty is enclosed.'
+                : ' Square uses the usual four orthogonal graph neighbors.';
         this.boundaryInfoEl.textContent = (random
             ? '2D RBC uses one fixed random map from each boundary exit to another boundary point. The map is stored with the game state.'
             : klein

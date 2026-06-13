@@ -40,6 +40,30 @@ assert.deepEqual(
     'Even honeycomb columns should connect to the next row'
 );
 
+const triangular = new GoGameLogic({ size: 9, dimension: 2, topology: 'pbc', lattice: 'triangular' });
+assert.deepEqual(
+    [...neighborKeys(triangular, [0, 0])].sort(),
+    ['0,1', '0,8', '1,0', '1,8', '8,0', '8,1'],
+    'Triangular PBC wraps all four axial and two diagonal graph edges'
+);
+
+const triangularCapture = new GoGameLogic({ size: 9, dimension: 2, topology: 'open2d', lattice: 'triangular' });
+const surrounded = [4, 4];
+const surrounding = triangularCapture.neighborsFromCoord(surrounded);
+triangularCapture.board[triangularCapture.indexFromCoord(surrounded)] = COLORS.black;
+for (const coord of surrounding.slice(0, -1)) {
+    triangularCapture.board[triangularCapture.indexFromCoord(coord)] = COLORS.white;
+}
+const beforeCapture = triangularCapture.getGroupAndLiberties(
+    triangularCapture.board,
+    triangularCapture.indexFromCoord(surrounded)
+);
+assert.equal(beforeCapture.liberties.size, 1, 'Five occupied triangular neighbors leave one exposed graph liberty');
+triangularCapture.currentPlayer = 'white';
+const enclosed = triangularCapture.tryPlay(surrounding.at(-1), 'white');
+assert.equal(enclosed.ok, true);
+assert.equal(enclosed.captured, 1, 'Filling the sixth triangular neighbor captures the enclosed stone');
+
 const imported = new GoGameLogic();
 imported.importState({ ...periodic.exportState(), topology: 'pbc-x' });
 assert.equal(imported.topology, 'pbc', 'legacy pbc-x states should normalize to full PBC');

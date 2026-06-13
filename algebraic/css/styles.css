@@ -369,6 +369,16 @@ h2 {
     background: rgba(32, 46, 58, 0.88);
 }
 
+.board.lattice-triangular .cell {
+    background-image: linear-gradient(
+        135deg,
+        transparent 47%,
+        rgba(137, 166, 179, 0.32) 48%,
+        rgba(137, 166, 179, 0.32) 52%,
+        transparent 53%
+    );
+}
+
 .cell:hover {
     border-color: rgba(66, 198, 255, 0.72);
 }

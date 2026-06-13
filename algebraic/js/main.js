@@ -182,6 +182,11 @@ function syncModeControls() {
     if (els.cliffordAlgebraControls) els.cliffordAlgebraControls.hidden = !isClifford;
     if (els.anyonAlgebraControls) els.anyonAlgebraControls.hidden = !isAnyon;
     if (els.virasoroAlgebraControls) els.virasoroAlgebraControls.hidden = !isVirasoroGo;
+    setAllowedSelectValues(
+        els.latticeSelect,
+        isVirasoroGo ? ['square', 'honeycomb', 'triangular'] : ['square', 'honeycomb'],
+        'square'
+    );
     if (els.physicalProblemSelect) {
         setAllowedSelectValues(
             els.physicalProblemSelect,
@@ -252,7 +257,9 @@ function syncModeControls() {
         els.virasoroDirectionSelect,
         els.topologySelect.value === 'flat_4d_grid'
             ? ['1,0', '-1,0', '0,1', '0,-1', '0,0,1,0', '0,0,-1,0', '0,0,0,1', '0,0,0,-1']
-            : ['1,0', '-1,0', '0,1', '0,-1'],
+            : els.latticeSelect.value === 'triangular'
+                ? ['1,0', '-1,0', '0,1', '0,-1', '1,-1', '-1,1']
+                : ['1,0', '-1,0', '0,1', '0,-1'],
         '1,0'
     );
     if (els.blackBraidCard) els.blackBraidCard.hidden = !isAnyon;
@@ -533,6 +540,7 @@ function render() {
 function renderBoard() {
     const [width] = game.topology.sizes;
     els.board.style.gridTemplateColumns = `repeat(${width}, minmax(0, 1fr))`;
+    els.board.classList.toggle('lattice-triangular', game.topology.lattice === 'triangular');
     els.board.innerHTML = '';
 
     const preview = currentReversiPreview();

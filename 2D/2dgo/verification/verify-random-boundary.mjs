@@ -11,6 +11,22 @@ assert.deepEqual(first.stepCoord([0, 4], 0, -1), second.stepCoord([0, 4], 0, -1)
 assert.notEqual(first.stepCoord([0, 4], 0, -1), null, 'Random boundary maps an off-board exit back to a board point.');
 assert.equal(first.neighborsFromCoord([0, 4]).length, 4, 'Random boundary gives edge points four graph neighbors.');
 
+const triangular = new GoGameLogic({
+    size: 9,
+    topology: 'random',
+    lattice: 'triangular',
+    dimension: 2,
+    randomBoundarySeed: 'fixed-triangular-go-map'
+});
+assert.ok(
+    triangular.stepDirection([4, 0], [1, -1]),
+    'Triangular RBC maps an exposed diagonal edge back to a boundary point.'
+);
+assert.ok(
+    triangular.stepDirection([0, 4], [-1, 1]),
+    'Triangular RBC maps the opposite exposed diagonal edge.'
+);
+
 const exported = first.exportState();
 const imported = new GoGameLogic({ size: 9, topology: 'open2d' });
 imported.importState(exported);

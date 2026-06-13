@@ -45,6 +45,7 @@
                         <select id="latticeSelect">
                             <option value="square" selected>Square</option>
                             <option value="honeycomb">Honeycomb</option>
+                            <option value="triangular">Triangular</option>
                         </select>
                     </label>
                     <label id="physicalProblemControl">
@@ -212,6 +213,8 @@
                             <option value="-1,0">-x</option>
                             <option value="0,1">+y</option>
                             <option value="0,-1">-y</option>
+                            <option value="1,-1">+x - y</option>
+                            <option value="-1,1">-x + y</option>
                             <option value="0,0,1,0">+z</option>
                             <option value="0,0,-1,0">-z</option>
                             <option value="0,0,0,1">+w</option>
@@ -392,6 +395,7 @@
                     <div data-rules-mode="virasoro">
                         <h2>Virasoro Go Rules</h2>
                         <p><strong>Base Go:</strong> this mode uses ordinary graph-Go rules. Stones live on graph vertices. Connected groups, liberties, captures, suicide rejection, superko, two-pass counting, and area scoring all use graph adjacency from the selected topology.</p>
+                        <p><strong>Lattices:</strong> square uses four graph neighbors, honeycomb uses three, and triangular uses six: &plusmn;x, &plusmn;y, (+x,-y), and (-x,+y). Captures require enclosing every remaining graph liberty, including diagonal liberties exposed at a topology boundary.</p>
                         <p><strong>2D RBC:</strong> the 2D RBC topology creates one static random map from every boundary exit to another boundary point. Liberties, groups, captures, stress movement, and scoring all use that graph.</p>
                         <p><strong>Optional Virasoro layer:</strong> every vertex has a stress value T(v), initially 0. Each connected stone group has conformal weight h = group_size / 2. The central charge c defaults to 1. With max mode N = 1, the enabled actions are L_-1, L_0, and L_1. With N = 2, L_-2 and L_2 are also available.</p>
                         <p><strong>Turn choice:</strong> a player may place a normal Go stone, pass, agree to count after two passes, or spend the turn on one Virasoro action when the layer is on. Normal Go captures still happen only by zero liberties.</p>
@@ -457,6 +461,6 @@
             </aside>
         </section>
     </main>
-    <script type="module" src="./js/main.js?v=20260613-random-boundary"></script>
+    <script type="module" src="./js/main.js?v=20260614-triangular-lattice"></script>
 </body>
 </html>

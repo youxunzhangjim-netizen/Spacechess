@@ -26,6 +26,22 @@ const honeycomb = createGraphTopology({ topology: 'flat', lattice: 'honeycomb', 
 assert.equal(honeycomb.lattice, 'honeycomb');
 assert.equal(honeycomb.neighbors([2, 2]).length, 3, 'Honeycomb interior vertex has three graph neighbors.');
 assert.deepEqual(honeycomb.rayDirections(), [[1, 0], [-1, 0], [0, 1]], 'Honeycomb rays use only graph-edge directions.');
+const triangular = createGraphTopology({ topology: 'torus', lattice: 'triangular', width: 6, height: 6 });
+assert.equal(triangular.lattice, 'triangular');
+assert.equal(triangular.neighbors([2, 2]).length, 6, 'Triangular interior vertex has six graph neighbors.');
+assert.deepEqual(
+    triangular.step([0, 0], [1, -1]).coord,
+    [1, 5],
+    'Triangular diagonal edges wrap through the torus boundary.'
+);
+const triangularRandom = createGraphTopology({
+    topology: 'random_boundary',
+    lattice: 'triangular',
+    width: 6,
+    height: 6,
+    randomBoundarySeed: 'triangular-random-boundary'
+});
+assert.ok(triangularRandom.step([2, 0], [1, -1])?.coord, 'Triangular RBC maps exposed diagonal edges.');
 
 const reversi = new CliffordReversiGame({ topology: { topology: 'torus', width: 8, height: 8 } });
 const preview = reversi.previewMove([2, 3], 'black', 'H');
@@ -92,6 +108,25 @@ excitation.currentPlayer = 'black';
 const dropE = excitation.dropAnyon(exciteE.event.tokenId, 'black');
 assert.equal(dropE.ok, true, 'Dropping an anyon recovers energy.');
 assert.equal(excitation.energy.black, 5.5, 'Drop recovery applies the configured loss rate.');
+
+const triangularGo = new VirasoroGoGame({
+    topology: { topology: 'flat', lattice: 'triangular', width: 7, height: 7 }
+});
+const enclosedStone = [3, 3];
+const triangularLiberties = triangularGo.topology.neighbors(enclosedStone);
+triangularGo.go.board.set(triangularGo.go.key(enclosedStone), 1);
+for (const coord of triangularLiberties.slice(0, -1)) {
+    triangularGo.go.board.set(triangularGo.go.key(coord), 2);
+}
+assert.equal(
+    triangularGo.go.getGroupAndLiberties(triangularGo.go.board, triangularGo.go.key(enclosedStone)).liberties.size,
+    1,
+    'Algebraic triangular Go retains the final exposed liberty.'
+);
+triangularGo.currentPlayer = 'white';
+const triangularCapture = triangularGo.tryPlay(triangularLiberties.at(-1), 'white');
+assert.equal(triangularCapture.ok, true);
+assert.equal(triangularCapture.captured, 1, 'Algebraic triangular Go captures after all six graph liberties are enclosed.');
 
 const exact = new AnyonJumpGame({
     topology: { topology: 'torus', width: 4, height: 4 },

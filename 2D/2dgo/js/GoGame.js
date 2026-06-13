@@ -38,8 +38,23 @@ function wrap(value, size) {
 }
 
 function normalizeLattice(lattice) {
-    return String(lattice || '').toLowerCase() === 'honeycomb' ? 'honeycomb' : 'square';
+    const value = String(lattice || '').toLowerCase();
+    if (value === 'honeycomb' || value === 'triangular') return value;
+    return 'square';
 }
+
+const SQUARE_DIRECTIONS = Object.freeze([
+    Object.freeze([1, 0]),
+    Object.freeze([-1, 0]),
+    Object.freeze([0, 1]),
+    Object.freeze([0, -1])
+]);
+
+const TRIANGULAR_DIRECTIONS = Object.freeze([
+    ...SQUARE_DIRECTIONS,
+    Object.freeze([1, -1]),
+    Object.freeze([-1, 1])
+]);
 
 function randomSeed() {
     return `go-random-boundary:${Date.now()}:${Math.random().toString(36).slice(2)}`;
@@ -59,20 +74,35 @@ function randomExitKey(coord, axis, delta) {
     return `${coord[0]},${coord[1]}:${axis}:${Math.sign(delta)}`;
 }
 
-function createRandomBoundaryMap(size, seed = randomSeed()) {
+function randomDirectionKey(coord, direction) {
+    const [dx = 0, dy = 0] = direction;
+    if (dx !== 0 && dy === 0) return randomExitKey(coord, 0, dx);
+    if (dy !== 0 && dx === 0) return randomExitKey(coord, 1, dy);
+    return `${coord[0]},${coord[1]}:d:${Math.sign(dx)},${Math.sign(dy)}`;
+}
+
+function latticeDirections(lattice, coord) {
+    if (lattice === 'triangular') return TRIANGULAR_DIRECTIONS;
+    if (lattice === 'honeycomb') {
+        return [[1, 0], [-1, 0], [0, coord[0] % 2 === 0 ? 1 : -1]];
+    }
+    return SQUARE_DIRECTIONS;
+}
+
+function createRandomBoundaryMap(size, seed = randomSeed(), lattice = 'square') {
     const rng = new SeededRandom(seed);
     const targets = boundaryTargets(size);
     const entries = [];
     for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
-            for (const [axis, delta] of [[0, -1], [0, 1], [1, -1], [1, 1]]) {
-                const raw = axis === 0 ? x + delta : y + delta;
-                if (raw >= 0 && raw < size) continue;
+            for (const direction of latticeDirections(lattice, [x, y])) {
+                const raw = [x + direction[0], y + direction[1]];
+                if (raw[0] >= 0 && raw[0] < size && raw[1] >= 0 && raw[1] < size) continue;
                 let target = targets[rng.integer(targets.length)] || [x, y];
                 if (targets.length > 1 && target[0] === x && target[1] === y) {
                     target = targets[(targets.findIndex(([tx, ty]) => tx === target[0] && ty === target[1]) + 1) % targets.length];
                 }
-                entries.push([randomExitKey([x, y], axis, delta), target]);
+                entries.push([randomDirectionKey([x, y], direction), target]);
             }
         }
     }
@@ -92,7 +122,7 @@ export class GoGameLogic {
         this.komi = Number.isFinite(Number(komi)) ? Number(komi) : 7.5;
         this.randomBoundarySeed = this.topology === 'random' ? (randomBoundarySeed || randomSeed()) : '';
         this.randomBoundaryMap = this.topology === 'random'
-            ? new Map(Array.isArray(randomBoundaryMap) ? randomBoundaryMap : createRandomBoundaryMap(this.size, this.randomBoundarySeed))
+            ? new Map(Array.isArray(randomBoundaryMap) ? randomBoundaryMap : createRandomBoundaryMap(this.size, this.randomBoundarySeed, this.lattice))
             : new Map();
         this.total = this.size ** this.dimension;
         this.board = new Uint8Array(this.total);
@@ -149,36 +179,41 @@ export class GoGameLogic {
     }
 
     stepCoord(coord, axis, delta) {
+        const direction = Array(this.dimension).fill(0);
+        direction[axis] = delta;
+        return this.stepDirection(coord, direction);
+    }
+
+    stepDirection(coord, direction) {
         if (this.topology === 'random' && this.dimension === 2) {
-            const next = [...coord];
-            next[axis] += delta;
-            if (next[axis] >= 0 && next[axis] < this.size) return next;
-            const target = this.randomBoundaryMap.get(randomExitKey(coord, axis, delta));
+            const next = [coord[0] + (direction[0] || 0), coord[1] + (direction[1] || 0)];
+            if (this.containsCoord(next)) return next;
+            const target = this.randomBoundaryMap.get(randomDirectionKey(coord, direction));
             return target ? [...target] : null;
         }
         if (this.topology === 'klein' && this.dimension === 2) {
-            const [x, y] = coord;
-            if (axis === 0) return [wrap(x + delta, this.size), y];
-            const nextY = y + delta;
-            if (nextY < 0) return [this.size - 1 - x, this.size - 1];
-            if (nextY >= this.size) return [this.size - 1 - x, 0];
-            return [x, nextY];
+            let nextX = coord[0] + (direction[0] || 0);
+            let nextY = coord[1] + (direction[1] || 0);
+            if (nextY < 0 || nextY >= this.size) {
+                nextX = this.size - 1 - nextX;
+                nextY = wrap(nextY, this.size);
+            }
+            return [wrap(nextX, this.size), nextY];
         }
-        const next = [...coord];
-        next[axis] += delta;
-        if (next[axis] < 0 || next[axis] >= this.size) {
+        const next = coord.map((value, axis) => value + (direction[axis] || 0));
+        for (let axis = 0; axis < this.dimension; axis++) {
+            if (next[axis] >= 0 && next[axis] < this.size) continue;
             if (!this.isWrapAxis(axis)) return null;
-            next[axis] = (next[axis] + this.size) % this.size;
+            next[axis] = wrap(next[axis], this.size);
         }
         return next;
     }
 
     neighborsFromCoord(coord) {
         const neighbors = [];
-        if (this.dimension === 2 && this.lattice === 'honeycomb') {
-            const verticalDelta = coord[0] % 2 === 0 ? 1 : -1;
-            for (const [axis, delta] of [[0, -1], [0, 1], [1, verticalDelta]]) {
-                const next = this.stepCoord(coord, axis, delta);
+        if (this.dimension === 2) {
+            for (const direction of latticeDirections(this.lattice, coord)) {
+                const next = this.stepDirection(coord, direction);
                 if (next) neighbors.push(next);
             }
             return [...new Map(neighbors.map((neighbor) => [this.coordKey(neighbor), neighbor])).values()];
@@ -441,7 +476,7 @@ export class GoGameLogic {
         this.lattice = this.dimension === 2 ? normalizeLattice(state.lattice) : 'square';
         this.randomBoundarySeed = this.topology === 'random' ? (state.randomBoundarySeed || randomSeed()) : '';
         this.randomBoundaryMap = this.topology === 'random'
-            ? new Map(Array.isArray(state.randomBoundaryMap) ? state.randomBoundaryMap : createRandomBoundaryMap(this.size, this.randomBoundarySeed))
+            ? new Map(Array.isArray(state.randomBoundaryMap) ? state.randomBoundaryMap : createRandomBoundaryMap(this.size, this.randomBoundarySeed, this.lattice))
             : new Map();
         this.komi = Number.isFinite(Number(state.komi)) ? Number(state.komi) : 7.5;
         this.total = this.size ** this.dimension;

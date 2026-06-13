@@ -35,6 +35,15 @@ const HONEYCOMB_DIRECTIONS = Object.freeze([
     Object.freeze([0, 1])
 ]);
 
+const TRIANGULAR_DIRECTIONS = Object.freeze([
+    Object.freeze([1, 0]),
+    Object.freeze([-1, 0]),
+    Object.freeze([0, 1]),
+    Object.freeze([0, -1]),
+    Object.freeze([1, -1]),
+    Object.freeze([-1, 1])
+]);
+
 const AXIS_4D = Object.freeze([
     Object.freeze([1, 0, 0, 0]),
     Object.freeze([-1, 0, 0, 0]),
@@ -216,7 +225,8 @@ function normalizeRP2Coord(rawCoord, sizes) {
 
 function create2DTopology(config) {
     const name = config.topology;
-    const lattice = String(config.lattice || 'square').toLowerCase() === 'honeycomb' ? 'honeycomb' : 'square';
+    const latticeValue = String(config.lattice || 'square').toLowerCase();
+    const lattice = latticeValue === 'honeycomb' || latticeValue === 'triangular' ? latticeValue : 'square';
     const width = integer(config.width, 8, 2, 32);
     const height = integer(config.height, 8, 2, 32);
     const sizes = [width, height];
@@ -227,7 +237,15 @@ function create2DTopology(config) {
     const randomBoundaryMap = name === 'random_boundary'
         ? new Map(Array.isArray(config.randomBoundaryMap)
             ? config.randomBoundaryMap
-            : createRandomBoundaryMap(width, height, lattice === 'honeycomb' ? HONEYCOMB_DIRECTIONS : RAYS_2D, randomBoundarySeed, lattice))
+            : createRandomBoundaryMap(
+                width,
+                height,
+                lattice === 'honeycomb'
+                    ? HONEYCOMB_DIRECTIONS
+                    : lattice === 'triangular' ? TRIANGULAR_DIRECTIONS : RAYS_2D,
+                randomBoundarySeed,
+                lattice
+            ))
         : new Map();
 
     function normalize(rawCoord) {
@@ -305,10 +323,18 @@ function create2DTopology(config) {
             return enumerateVertices(sizes);
         },
         directions() {
-            return (lattice === 'honeycomb' ? HONEYCOMB_DIRECTIONS : CARDINAL_2D).map((direction) => [...direction]);
+            return (
+                lattice === 'honeycomb'
+                    ? HONEYCOMB_DIRECTIONS
+                    : lattice === 'triangular' ? TRIANGULAR_DIRECTIONS : CARDINAL_2D
+            ).map((direction) => [...direction]);
         },
         rayDirections() {
-            return (lattice === 'honeycomb' ? HONEYCOMB_DIRECTIONS : RAYS_2D).map((direction) => [...direction]);
+            return (
+                lattice === 'honeycomb'
+                    ? HONEYCOMB_DIRECTIONS
+                    : lattice === 'triangular' ? TRIANGULAR_DIRECTIONS : RAYS_2D
+            ).map((direction) => [...direction]);
         },
         step,
         neighbors(coord) {
@@ -351,7 +377,11 @@ function create2DTopology(config) {
             });
         },
         seamSummary() {
-            const latticeText = lattice === 'honeycomb' ? ' Honeycomb lattice: each interior vertex has three graph neighbors.' : '';
+            const latticeText = lattice === 'honeycomb'
+                ? ' Honeycomb lattice: each interior vertex has three graph neighbors.'
+                : lattice === 'triangular'
+                    ? ' Triangular lattice: each interior vertex has six graph neighbors; capture requires enclosing every exposed graph liberty.'
+                    : '';
             if (name === 'flat') return 'Standard boundary: rays stop at the edge.' + latticeText;
             if (name === 'random_boundary') return '2D RBC: each boundary exit maps to one fixed random boundary square for this game.' + latticeText;
             if (name === 'sphere_latitude') return 'Sphere latitude graph: longitude wraps, top and bottom latitude rings stop.' + latticeText;
