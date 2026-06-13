@@ -240,7 +240,7 @@ try {
             .join(' ')
     }));
     assert.equal(fixedAnyonState.title, 'Anyon Jump Chess');
-    assert.equal(fixedAnyonState.modeControlHidden, true, 'Fixed launcher mode should hide the mixed mode selector.');
+    assert.equal(fixedAnyonState.modeControlHidden, false, 'Launcher-selected mode should remain changeable inside the algebraic app.');
     assert.equal(fixedAnyonState.pauliHidden, true, 'Anyon Jump should hide Pauli Reversi controls.');
     assert.equal(fixedAnyonState.cliffordDisplay, 'none');
     assert.notEqual(fixedAnyonState.anyonDisplay, 'none');
@@ -322,7 +322,7 @@ try {
             .join(' ')
     }));
     assert.equal(fixedGoState.title, 'Virasoro Go');
-    assert.equal(fixedGoState.modeControlHidden, true, 'Fixed Virasoro Go mode should hide the mixed mode selector.');
+    assert.equal(fixedGoState.modeControlHidden, false, 'Launcher-selected Virasoro Go should remain changeable inside the algebraic app.');
     assert.equal(fixedGoState.virasoroVisible, true, 'Virasoro Go should show Virasoro controls.');
     assert.equal(fixedGoState.cliffordDisplay, 'none', 'Virasoro Go should hide Clifford algebra group.');
     assert.equal(fixedGoState.anyonDisplay, 'none', 'Virasoro Go should hide Anyon algebra group.');

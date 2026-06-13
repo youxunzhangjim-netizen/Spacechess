@@ -130,7 +130,7 @@ const ANYON_SYMBOLS = {
     tau: '\u03c4'
 };
 const params = new URLSearchParams(window.location.search);
-const FIXED_MODE = normalizeMode(params.get('mode') || params.get('game') || params.get('algebraicMode'));
+const INITIAL_MODE = normalizeMode(params.get('mode') || params.get('game') || params.get('algebraicMode'));
 const URL_PHYSICAL_PROBLEM_ID = params.get('physicalProblem') || params.get('problemId') || '';
 
 let game = null;
@@ -155,10 +155,9 @@ const algebraic3d = new Algebraic3DBoard({
 });
 window.algebraic3dBoard = algebraic3d;
 
-if (FIXED_MODE) {
-    els.modeSelect.value = FIXED_MODE;
-    els.modeSelect.disabled = true;
-    document.body.dataset.fixedAlgebraicMode = FIXED_MODE;
+if (INITIAL_MODE) {
+    els.modeSelect.value = INITIAL_MODE;
+    document.body.dataset.initialAlgebraicMode = INITIAL_MODE;
 }
 if (URL_PHYSICAL_PROBLEM_ID && els.physicalProblemSelect) {
     els.physicalProblemSelect.value = URL_PHYSICAL_PROBLEM_ID;
@@ -172,7 +171,7 @@ function normalizeMode(value) {
 }
 
 function selectedMode() {
-    return normalizeMode(FIXED_MODE || els.modeSelect.value) || 'clifford_reversi';
+    return normalizeMode(els.modeSelect.value) || 'clifford_reversi';
 }
 
 function selectedPhysicalProblemId() {
@@ -197,7 +196,7 @@ function syncModeControls() {
     const isVirasoroGo = mode === 'virasoro_go';
     const isClifford = mode === 'clifford_reversi';
     if (els.modeSelect.value !== mode) els.modeSelect.value = mode;
-    if (els.modeControl) els.modeControl.hidden = Boolean(FIXED_MODE);
+    if (els.modeControl) els.modeControl.hidden = false;
     if (els.cliffordAlgebraControls) els.cliffordAlgebraControls.hidden = !isClifford;
     if (els.anyonAlgebraControls) els.anyonAlgebraControls.hidden = !isAnyon;
     if (els.virasoroAlgebraControls) els.virasoroAlgebraControls.hidden = !isVirasoroGo;
