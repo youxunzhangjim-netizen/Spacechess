@@ -107,9 +107,9 @@
                     <option value="0">No Timer</option>
                     <option value="300">5 Minutes</option>
                     <option value="600" selected>10 Minutes</option>
-                    <option value="900">15 Minutes</option>
                     <option value="1800">30 Minutes</option>
                     <option value="3600">1 Hour</option>
+                    <option value="86400">1 Day</option>
                 </select>
             </div>
 
@@ -119,6 +119,17 @@
                 <button id="newGameBtn" type="button">New Game</button>
                 <button id="surrenderBtn" class="danger" type="button">Surrender</button>
             </div>
+
+            <section class="panel chat-panel">
+                <h3>Online Chat</h3>
+                <div id="chatMessages" class="chat-messages" aria-live="polite">
+                    <div class="chat-empty">Connect online to chat.</div>
+                </div>
+                <div class="chat-compose">
+                    <input id="chatInput" type="text" maxlength="240" autocomplete="off" placeholder="Message online opponent">
+                    <button id="chatSendBtn" type="button">Send</button>
+                </div>
+            </section>
 
             <section class="panel">
                 <h3>Move History</h3>

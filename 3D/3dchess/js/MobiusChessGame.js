@@ -91,7 +91,9 @@ export class MobiusChessGame extends TorusChessGame {
 
                 const targetPiece = this.getPiece(target.x, target.y, target.sheet);
                 if (targetPiece && targetPiece.color !== piece.color && targetPiece.type !== 'K') {
-                    moves.push({ ...target, capture: true });
+                    if (this.isCliffordCaptureLegal(piece, targetPiece)) {
+                        moves.push({ ...target, capture: true });
+                    }
                 }
             }
         }
@@ -169,7 +171,9 @@ export class MobiusChessGame extends TorusChessGame {
                 }
 
                 if (target.color !== piece.color && (forAttack || target.type !== 'K')) {
-                    moves.push({ ...targetCoord, capture: true });
+                    if (forAttack || this.isCliffordCaptureLegal(piece, target)) {
+                        moves.push({ ...targetCoord, capture: true });
+                    }
                 }
                 break;
             }
@@ -215,7 +219,8 @@ export class MobiusChessGame extends TorusChessGame {
             return;
         }
 
-        if (targetPiece.color !== piece.color && (forAttack || targetPiece.type !== 'K')) {
+        if (targetPiece.color !== piece.color && (forAttack || targetPiece.type !== 'K')
+            && (forAttack || this.isCliffordCaptureLegal(piece, targetPiece))) {
             moves.push({ ...target, capture: true });
         }
     }
@@ -347,7 +352,8 @@ export class MobiusChessGame extends TorusChessGame {
             fromSheet,
             toSheet: 1 - fromSheet,
             side,
-            index
+            index,
+            transport: 'H'
         };
     }
 

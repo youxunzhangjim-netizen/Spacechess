@@ -11,7 +11,7 @@
     <div class="container">
         <div class="header">
             <h1 data-i18n="app.title">2D Chess with Boundary Conditions</h1>
-            <p data-i18n="app.subtitle">Local and online multiplayer with forbidden, reflection, and periodic boundaries.</p>
+            <p data-i18n="app.subtitle">Local and online multiplayer with forbidden, open, reflection, and periodic boundaries.</p>
         </div>
 
         <div class="main-content">
@@ -44,7 +44,10 @@
                 </div>
 
                 <div class="board-container">
-                    <div id="chessboard" aria-label="2D chess board"></div>
+                    <div class="board-stage">
+                        <div id="chessboard" aria-label="2D chess board"></div>
+                        <div id="openBoundaryMoves" class="open-boundary-moves" aria-live="polite"></div>
+                    </div>
                 </div>
             </div>
 
@@ -97,6 +100,7 @@
                     <label for="boundarySelect" data-i18n="controls.boundary">Boundary Condition:</label>
                     <select id="boundarySelect">
                         <option value="forbidden" data-i18n="boundary.names.forbidden">Forbidden (Standard)</option>
+                        <option value="open" data-i18n="boundary.names.open">Open (Suicide)</option>
                         <option value="reflection" data-i18n="boundary.names.reflection">Reflection</option>
                         <option value="periodic" data-i18n="boundary.names.periodic">Periodic</option>
                     </select>

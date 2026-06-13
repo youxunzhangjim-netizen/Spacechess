@@ -8,6 +8,11 @@ import {
     TORUS_MINOR_RADIUS,
     torusFrame
 } from './TorusBoardGeometry.js';
+import {
+    SPHERE_GO_TOPOLOGY,
+    sphereVertexPosition
+} from './SphereGoTopology.js';
+import { KLEIN_BOTTLE_TOPOLOGY } from './KleinBottleTopology.js';
 
 const PUBLIC_GAME_URL = 'https://youxunzhangjim-netizen.github.io/Spacechess/3D/3dgo/';
 const STORAGE_PREFIX = '3dgo:room:';
@@ -18,30 +23,31 @@ const I18N = {
     en: {
         language: { label: 'Language', english: 'English', chinese: 'Chinese' },
         navigation: { home: 'Home' },
-        app: { title: '3D Go', tagline: 'R3 lattice Go and T2 torus Go with 9, 13, and 19 scale options.' },
+        app: { title: '3D Go', tagline: 'R3 lattice, T2 torus, S2 sphere, and Klein bottle Go with 9, 13, and 19 scale options.' },
         colors: { black: 'Black', white: 'White' },
         captured: { byBlack: 'Captured by Black', byWhite: 'Captured by White', stones: ({ count }) => count + ' ' + (count === 1 ? 'stone' : 'stones') },
-        controls: { title: 'Game Controls', gameMode: 'Game Mode', local: 'Local Pass and Play', online: 'Online Multiplayer', goSpace: 'Go Space', boardScale: 'Board Scale', timer: 'Timer per Player', resetCamera: 'Reset Camera', pass: 'Pass', agreeCount: 'Agree Count', newGame: 'New Game', surrender: 'Surrender' },
+        controls: { title: 'Game Controls', gameMode: 'Game Mode', local: 'Local Pass and Play', online: 'Online Multiplayer', goSpace: 'Go Space', sphereView: 'Sphere View', boardScale: 'Board Scale', timer: 'Timer per Player', resetCamera: 'Reset Camera', pass: 'Pass', agreeCount: 'Agree Count', newGame: 'New Game', surrender: 'Surrender' },
         online: { localStatus: 'Local pass and play', findMatch: 'Find Match', privateRoom: 'PRIVATE ROOM', createRoom: 'Create Room', or: 'OR', roomInput: '5-digit room code or shared link', joinRoom: 'Join Room', roomCode: 'Room Code', copy: 'Copy', copied: 'Copied', onlineAs: ({ color }) => 'Online as ' + color },
-        mode: { r3Option: 'R3 Go', t2Option: 'T2 Torus Go', r3Display: ({ size }) => size + '^3 R3 Go', t2Display: ({ size }) => size + ' x ' + size + ' T2 Go', r3Info: 'R3 uses open boundaries in x, y, and z.', t2Info: 'T2 wraps both directions on the torus board.' },
-        timer: { none: 'No Timer', five: '5 Minutes', ten: '10 Minutes', fifteen: '15 Minutes', thirty: '30 Minutes', hour: '1 Hour' },
+        chat: { title: 'Online Chat', empty: 'Connect online to chat.', placeholder: 'Message online opponent', send: 'Send', player: 'Player', connectFirst: 'Connect online before chatting.' },
+        mode: { r3Option: 'R3 Go', t2Option: 'T2 Torus Go', sphereOption: 'S2 Sphere Go', kleinOption: 'Klein Bottle Go', sphere3d: '3D Sphere', sphere2d: '2D Cut-open Fallback', r3Display: ({ size }) => size + '^3 R3 Go', t2Display: ({ size }) => size + ' x ' + size + ' T2 Go', sphereDisplay: ({ width, height }) => width + ' x ' + height + ' S2 Go', kleinDisplay: ({ width, height }) => width + ' x ' + height + ' Klein Bottle Go', r3Info: 'R3 uses open boundaries in x, y, and z.', t2Info: 'T2 wraps both directions on the torus board.', sphereInfo: 'S2 uses longitude rings with horizontal wrap. The first and last latitude rings have degree 3; there are no playable pole nodes or pole-crossing links.', kleinInfo: 'The Klein bottle has normal left-right wrap and flipped top-bottom wrap: leaving at x enters at width - 1 - x.' },
+        timer: { none: 'No Timer', five: '5 Minutes', ten: '10 Minutes', thirty: '30 Minutes', hour: '1 Hour', oneDay: '1 Day' },
         history: { title: 'Move History', started: 'Game started.' },
-        rules: { title: 'Rules', text: 'Area scoring with 7.5 komi. R3 groups use six face-adjacent liberties. T2 groups use four torus-adjacent liberties with both directions periodic.' },
+        rules: { title: 'Rules', text: 'Area scoring with 7.5 komi. Captures, liberties, superko, and territory use the selected board graph.' },
         status: { start: 'Select a glowing node for Black.', waitingForColor: ({ color }) => 'Waiting for ' + color + '.', toPlay: ({ color }) => color + ' to play', countingPending: 'Counting pending', twoPasses: 'Two passes. Both players must agree to count.', agreed: ({ color, other }) => color + ' agreed. Waiting for ' + other + '.', surrendered: ({ color, winner }) => color + ' surrendered. ' + winner + ' wins.', timedOut: ({ color, winner }) => color + ' ran out of time. ' + winner + ' wins.', synced: 'Synced online game.', finalCount: 'Final count:' },
         score: { draw: 'Draw', wins: ({ color }) => color + ' wins', winsBy: ({ color, margin }) => color + ' wins by ' + margin, summary: ({ black, white, komi, result }) => 'Black ' + black + ', White ' + white + ' including ' + komi + ' komi. ' + result }
     },
     zh: {
         language: { label: '語言', english: 'English', chinese: '繁體中文' },
         navigation: { home: '首頁' },
-        app: { title: '3D 圍棋', tagline: 'R3 格點圍棋與 T2 環面圍棋，支援 9、13、19 尺寸。' },
+        app: { title: '3D 圍棋', tagline: 'R3 格點、T2 環面、S2 球面與克萊因瓶圍棋，支援 9、13、19 尺寸。' },
         colors: { black: '黑方', white: '白方' },
         captured: { byBlack: '黑方提子', byWhite: '白方提子', stones: ({ count }) => count + ' 子' },
-        controls: { title: '遊戲控制', gameMode: '遊戲模式', local: '本地輪流', online: '線上多人', goSpace: '圍棋空間', boardScale: '棋盤尺度', timer: '每方時間', resetCamera: '重設視角', pass: '停一手', agreeCount: '同意計分', newGame: '新遊戲', surrender: '認輸' },
+        controls: { title: '遊戲控制', gameMode: '遊戲模式', local: '本地輪流', online: '線上多人', goSpace: '圍棋空間', sphereView: '球面視圖', boardScale: '棋盤尺度', timer: '每方時間', resetCamera: '重設視角', pass: '停一手', agreeCount: '同意計分', newGame: '新遊戲', surrender: '認輸' },
         online: { localStatus: '本地輪流', findMatch: '尋找配對', privateRoom: '私人房間', createRoom: '建立房間', or: '或', roomInput: '5 位房間碼或分享連結', joinRoom: '加入房間', roomCode: '房間碼', copy: '複製', copied: '已複製', onlineAs: ({ color }) => '線上身分：' + color },
-        mode: { r3Option: 'R3 圍棋', t2Option: 'T2 環面圍棋', r3Display: ({ size }) => size + '^3 R3 圍棋', t2Display: ({ size }) => size + ' x ' + size + ' T2 圍棋', r3Info: 'R3 在 x、y、z 三個方向使用開放邊界。', t2Info: 'T2 在環面棋盤的兩個方向皆為週期連接。' },
-        timer: { none: '無計時', five: '5 分鐘', ten: '10 分鐘', fifteen: '15 分鐘', thirty: '30 分鐘', hour: '1 小時' },
+        mode: { r3Option: 'R3 圍棋', t2Option: 'T2 環面圍棋', sphereOption: 'S2 球面圍棋', kleinOption: '克萊因瓶圍棋', sphere3d: '3D 球面', sphere2d: '2D 切開備用視圖', r3Display: ({ size }) => size + '^3 R3 圍棋', t2Display: ({ size }) => size + ' x ' + size + ' T2 圍棋', sphereDisplay: ({ width, height }) => width + ' x ' + height + ' S2 圍棋', kleinDisplay: ({ width, height }) => width + ' x ' + height + ' 克萊因瓶圍棋', r3Info: 'R3 在 x、y、z 三個方向使用開放邊界。', t2Info: 'T2 在環面棋盤的兩個方向皆為週期連接。', sphereInfo: 'S2 使用經度環並在水平方向循環。最南與最北緯度環的節點度數為 3；南北極沒有可落子節點，也沒有穿越極點的連線。', kleinInfo: '克萊因瓶的左右邊界直接循環；上下邊界循環時翻轉 x，從 x 離開後會在 width - 1 - x 進入。' },
+        timer: { none: '無計時', five: '5 分鐘', ten: '10 分鐘', thirty: '30 分鐘', hour: '1 小時', oneDay: '1 天' },
         history: { title: '走法記錄', started: '遊戲開始。' },
-        rules: { title: '規則', text: '面積計分，貼目 7.5。R3 棋串使用六個面相鄰氣；T2 棋串使用環面上四個週期相鄰氣。' },
+        rules: { title: '規則', text: '面積計分，貼目 7.5。提子、氣、超級劫與領地皆使用所選棋盤的圖相鄰關係。' },
         status: { start: '請選擇一個發光節點讓黑方落子。', waitingForColor: ({ color }) => '等待' + color + '。', toPlay: ({ color }) => color + '落子', countingPending: '等待計分確認', twoPasses: '雙方連續停一手。兩位玩家都需要同意計分。', agreed: ({ color, other }) => color + '已同意，等待' + other + '。', surrendered: ({ color, winner }) => color + '認輸，' + winner + '獲勝。', timedOut: ({ color, winner }) => color + '逾時，' + winner + '獲勝。', synced: '已同步線上棋局。', finalCount: '終局計分：' },
         score: { draw: '和局', wins: ({ color }) => color + '獲勝', winsBy: ({ color, margin }) => color + '勝 ' + margin, summary: ({ black, white, komi, result }) => '黑方 ' + black + '，白方 ' + white + '，含貼目 ' + komi + '。' + result }
     }
@@ -114,6 +120,9 @@ class Go3DRenderer {
         this.nodePoints = null;
         this.mode = '';
         this.size = 0;
+        this.width = 0;
+        this.height = 0;
+        this.view = '';
         this.clock = new THREE.Clock();
         this.initLights();
         this.bind();
@@ -161,17 +170,264 @@ class Go3DRenderer {
     }
 
     buildBoard(logic) {
-        if (this.mode === logic.topology && this.size === logic.size) return;
+        const view = logic.topology === SPHERE_GO_TOPOLOGY ? this.app.sphereView() : '';
+        if (this.mode === logic.topology
+            && this.size === logic.size
+            && this.width === logic.width
+            && this.height === logic.height
+            && this.view === view) return;
         this.mode = logic.topology;
         this.size = logic.size;
+        this.width = logic.width;
+        this.height = logic.height;
+        this.view = view;
+        this.controls.enableRotate = !(logic.topology === KLEIN_BOTTLE_TOPOLOGY
+            || (logic.topology === SPHERE_GO_TOPOLOGY && view === '2d'));
         this.clearGroup(this.boardGroup);
         this.clearGroup(this.hoverGroup);
         this.pointCoords = [];
         this.pointPositions = [];
         this.nodePoints = null;
         if (logic.topology === 'r3') this.buildR3(logic.size);
-        else this.buildTorus(logic.size);
+        else if (logic.topology === 't2') this.buildTorus(logic.size);
+        else if (logic.topology === KLEIN_BOTTLE_TOPOLOGY) this.buildKlein(logic.width, logic.height);
+        else if (view === '2d') this.buildSphereFlat(logic.width, logic.height);
+        else this.buildSphere(logic.width, logic.height);
         this.resetCamera();
+    }
+
+    buildSphere(width, height) {
+        const radius = 3.45;
+        const surface = new THREE.Mesh(
+            new THREE.SphereGeometry(radius - 0.045, 96, 48),
+            new THREE.MeshPhysicalMaterial({
+                color: 0x604a2b,
+                roughness: 0.6,
+                metalness: 0.02,
+                transparent: true,
+                opacity: 0.62,
+                clearcoat: 0.18
+            })
+        );
+        surface.castShadow = true;
+        surface.receiveShadow = true;
+        this.boardGroup.add(surface);
+
+        const linePositions = [];
+        const addEdge = (a, b) => linePositions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const current = this.spherePosition([x, y], width, height, 0.04);
+                const horizontal = this.spherePosition([(x + 1) % width, y], width, height, 0.04);
+                addEdge(current, horizontal);
+                if (y < height - 1) {
+                    addEdge(current, this.spherePosition([x, y + 1], width, height, 0.04));
+                }
+            }
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+        this.boardGroup.add(new THREE.LineSegments(
+            geometry,
+            new THREE.LineBasicMaterial({ color: 0xd8b36b, transparent: true, opacity: 0.72 })
+        ));
+
+        const pointPositions = [];
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const coord = [x, y];
+                const point = this.spherePosition(coord, width, height, 0.075);
+                this.pointCoords.push(coord);
+                this.pointPositions.push(point);
+                pointPositions.push(point.x, point.y, point.z);
+            }
+        }
+        this.addNodePoints(pointPositions, width <= 9 ? 0.075 : width <= 13 ? 0.056 : 0.042, {
+            color: 0xffe3a3,
+            opacity: 0.98
+        });
+    }
+
+    buildSphereFlat(width, height) {
+        const linePositions = [];
+        const pointPositions = [];
+        const scale = 7 / Math.max(width - 1, height - 1);
+        const position = ([x, y]) => new THREE.Vector3(
+            (x - (width - 1) / 2) * scale,
+            ((height - 1) / 2 - y) * scale,
+            0
+        );
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const coord = [x, y];
+                const point = position(coord);
+                this.pointCoords.push(coord);
+                this.pointPositions.push(point);
+                pointPositions.push(point.x, point.y, point.z);
+                if (x < width - 1) {
+                    const next = position([x + 1, y]);
+                    linePositions.push(point.x, point.y, 0, next.x, next.y, 0);
+                }
+                if (y < height - 1) {
+                    const next = position([x, y + 1]);
+                    linePositions.push(point.x, point.y, 0, next.x, next.y, 0);
+                }
+            }
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+        this.boardGroup.add(new THREE.LineSegments(
+            geometry,
+            new THREE.LineBasicMaterial({ color: 0xd8b36b, transparent: true, opacity: 0.64 })
+        ));
+        this.addNodePoints(pointPositions, width <= 9 ? 0.075 : width <= 13 ? 0.055 : 0.04, {
+            color: 0xffe3a3,
+            opacity: 0.98
+        });
+
+        const halfWidth = (width - 1) * scale / 2;
+        const halfHeight = (height - 1) * scale / 2;
+        const wrapMaterial = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.9 });
+        for (const side of [-1, 1]) {
+            const x = side * (halfWidth + scale * 0.42);
+            const points = [
+                new THREE.Vector3(x, -halfHeight, 0),
+                new THREE.Vector3(x, halfHeight, 0)
+            ];
+            this.boardGroup.add(new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints(points),
+                wrapMaterial
+            ));
+            const direction = side < 0 ? -1 : 1;
+            const arrowX = x + direction * scale * 0.16;
+            const arrowSegments = [
+                new THREE.Vector3(arrowX - direction * scale * 0.16, scale * 0.12, 0),
+                new THREE.Vector3(arrowX, 0, 0),
+                new THREE.Vector3(arrowX, 0, 0),
+                new THREE.Vector3(arrowX - direction * scale * 0.16, -scale * 0.12, 0)
+            ];
+            this.boardGroup.add(new THREE.LineSegments(
+                new THREE.BufferGeometry().setFromPoints(arrowSegments),
+                wrapMaterial
+            ));
+        }
+    }
+
+    buildKlein(width, height) {
+        const scale = 7 / Math.max(width - 1, height - 1);
+        const halfWidth = (width - 1) * scale / 2;
+        const halfHeight = (height - 1) * scale / 2;
+        const linePositions = [];
+        const pointPositions = [];
+
+        const surface = new THREE.Mesh(
+            new THREE.PlaneGeometry(halfWidth * 2 + scale * 0.8, halfHeight * 2 + scale * 0.8),
+            new THREE.MeshPhysicalMaterial({
+                color: 0x5d4225,
+                roughness: 0.78,
+                metalness: 0.01,
+                clearcoat: 0.12,
+                side: THREE.DoubleSide
+            })
+        );
+        surface.position.z = -0.045;
+        surface.receiveShadow = true;
+        this.boardGroup.add(surface);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const coord = [x, y];
+                const point = this.kleinPosition(coord, width, height);
+                this.pointCoords.push(coord);
+                this.pointPositions.push(point);
+                pointPositions.push(point.x, point.y, point.z);
+                if (x < width - 1) {
+                    const next = this.kleinPosition([x + 1, y], width, height);
+                    linePositions.push(point.x, point.y, 0, next.x, next.y, 0);
+                }
+                if (y < height - 1) {
+                    const next = this.kleinPosition([x, y + 1], width, height);
+                    linePositions.push(point.x, point.y, 0, next.x, next.y, 0);
+                }
+            }
+        }
+
+        const gridGeometry = new THREE.BufferGeometry();
+        gridGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+        this.boardGroup.add(new THREE.LineSegments(
+            gridGeometry,
+            new THREE.LineBasicMaterial({ color: 0xe0b86d, transparent: true, opacity: 0.72 })
+        ));
+        this.addNodePoints(pointPositions, width <= 9 ? 0.072 : width <= 13 ? 0.052 : 0.04, {
+            color: 0xffe5a8,
+            opacity: 0.98
+        });
+
+        const sideMaterial = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.96 });
+        const seamMaterial = new THREE.LineBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.96 });
+        const guideMaterial = new THREE.LineBasicMaterial({ color: 0xfde68a, transparent: true, opacity: 0.24 });
+        const margin = scale * 0.55;
+        const addLine = (points, material) => {
+            this.boardGroup.add(new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints(points),
+                material
+            ));
+        };
+
+        for (const side of [-1, 1]) {
+            const x = side * (halfWidth + margin);
+            addLine([
+                new THREE.Vector3(x, -halfHeight, 0.03),
+                new THREE.Vector3(x, halfHeight, 0.03)
+            ], sideMaterial);
+            const direction = side < 0 ? -1 : 1;
+            this.boardGroup.add(new THREE.ArrowHelper(
+                new THREE.Vector3(direction, 0, 0),
+                new THREE.Vector3(x - direction * scale * 0.25, 0, 0.04),
+                scale * 0.5,
+                0x38bdf8,
+                scale * 0.18,
+                scale * 0.11
+            ));
+        }
+
+        for (const side of [-1, 1]) {
+            const y = side * (halfHeight + margin);
+            addLine([
+                new THREE.Vector3(-halfWidth, y, 0.03),
+                new THREE.Vector3(halfWidth, y, 0.03)
+            ], seamMaterial);
+        }
+
+        const guideCount = Math.min(width, 7);
+        const guideXs = new Set();
+        for (let index = 0; index < guideCount; index++) {
+            guideXs.add(Math.round(index * (width - 1) / Math.max(1, guideCount - 1)));
+        }
+        for (const x of guideXs) {
+            const mirroredX = width - 1 - x;
+            const top = this.kleinPosition([x, 0], width, height, 0.025);
+            const bottom = this.kleinPosition([mirroredX, height - 1], width, height, 0.025);
+            addLine([top, bottom], guideMaterial);
+
+            const arrowLength = scale * 0.42;
+            this.boardGroup.add(new THREE.ArrowHelper(
+                new THREE.Vector3(0, 1, 0),
+                new THREE.Vector3(top.x, halfHeight + margin + scale * 0.12, 0.05),
+                arrowLength,
+                0xfbbf24,
+                scale * 0.15,
+                scale * 0.1
+            ));
+            this.boardGroup.add(new THREE.ArrowHelper(
+                new THREE.Vector3(0, 1, 0),
+                new THREE.Vector3(bottom.x, -halfHeight - margin - arrowLength - scale * 0.12, 0.05),
+                arrowLength,
+                0xfbbf24,
+                scale * 0.15,
+                scale * 0.1
+            ));
+        }
     }
 
     buildR3(size) {
@@ -404,7 +660,35 @@ class Go3DRenderer {
 
     positionForCoord(coord, logic) {
         if (logic.topology === 't2') return this.torusPosition(coord, logic.size, 0.18).position;
+        if (logic.topology === KLEIN_BOTTLE_TOPOLOGY) {
+            return this.kleinPosition(coord, logic.width, logic.height, 0.14);
+        }
+        if (logic.topology === SPHERE_GO_TOPOLOGY) {
+            if (this.view === '2d') {
+                const scale = 7 / Math.max(logic.width - 1, logic.height - 1);
+                return new THREE.Vector3(
+                    (coord[0] - (logic.width - 1) / 2) * scale,
+                    ((logic.height - 1) / 2 - coord[1]) * scale,
+                    0.14
+                );
+            }
+            return this.spherePosition(coord, logic.width, logic.height, 0.18);
+        }
         return this.r3Position(coord, logic.size);
+    }
+
+    spherePosition(coord, width, height, lift = 0) {
+        const point = sphereVertexPosition(coord, width, height, 3.45, lift);
+        return new THREE.Vector3(point.x, point.y, point.z);
+    }
+
+    kleinPosition(coord, width, height, lift = 0) {
+        const scale = 7 / Math.max(width - 1, height - 1);
+        return new THREE.Vector3(
+            (coord[0] - (width - 1) / 2) * scale,
+            ((height - 1) / 2 - coord[1]) * scale,
+            lift
+        );
     }
 
     r3Scale(size) {
@@ -428,6 +712,12 @@ class Go3DRenderer {
         if (this.app?.logic?.topology === 't2') {
             this.camera.position.set(0, 5.6, 9.8);
             this.controls.target.set(0, 0, 0);
+        } else if (this.app?.logic?.topology === KLEIN_BOTTLE_TOPOLOGY) {
+            this.camera.position.set(0, 0, 10.5);
+            this.controls.target.set(0, 0, 0);
+        } else if (this.app?.logic?.topology === SPHERE_GO_TOPOLOGY) {
+            this.camera.position.set(0, this.view === '2d' ? 0 : 1.8, this.view === '2d' ? 10.5 : 9.4);
+            this.controls.target.set(0, 0, 0);
         } else {
             this.camera.position.set(7.8, 7.4, 8.2);
             this.controls.target.set(0, 0, 0);
@@ -449,6 +739,8 @@ class Go3DRenderer {
 class Go3DApp {
     constructor() {
         this.modeSelect = document.getElementById('goModeSelect');
+        this.sphereViewSelect = document.getElementById('sphereViewSelect');
+        this.sphereViewGroup = document.getElementById('sphereViewGroup');
         this.sizeSelect = document.getElementById('boardSizeSelect');
         this.timerSelect = document.getElementById('timerSelect');
         this.gameModeSelect = document.getElementById('gameModeSelect');
@@ -474,6 +766,9 @@ class Go3DApp {
         this.roomIdInput = document.getElementById('roomIdInput');
         this.copyLinkBtn = document.getElementById('copyLinkBtn');
         this.shareLinkInput = document.getElementById('shareLinkInput');
+        this.chatMessagesEl = document.getElementById('chatMessages');
+        this.chatInput = document.getElementById('chatInput');
+        this.chatSendBtn = document.getElementById('chatSendBtn');
         this.applyUrlSettings();
         this.logic = this.createLogic();
         this.renderer = new Go3DRenderer(this);
@@ -484,6 +779,7 @@ class Go3DApp {
         this.timeLimit = Number(this.timerSelect.value) || 0;
         this.timeRemaining = { black: this.timeLimit, white: this.timeLimit };
         this.timerInterval = null;
+        this.chatMessages = [];
         this.bindEvents();
         applyLanguage();
         this.setStatus(tr('status.start'));
@@ -494,7 +790,9 @@ class Go3DApp {
     applyUrlSettings() {
         const params = new URLSearchParams(window.location.search);
         const mode = String(params.get('mode') || '').toLowerCase();
-        if (mode === 'r3' || mode === 't2') this.modeSelect.value = mode;
+        if (mode === 'r3' || mode === 't2' || mode === 'sphere' || mode === 's2' || mode === 'klein') {
+            this.modeSelect.value = mode === 's2' ? 'sphere' : mode;
+        }
 
         const size = params.get('size');
         if (['9', '13', '19'].includes(size)) this.sizeSelect.value = size;
@@ -519,11 +817,27 @@ class Go3DApp {
     createLogic() {
         const mode = this.modeSelect?.value || 'r3';
         const size = Number(this.sizeSelect?.value) || 19;
-        return new GoGameLogic({ size, dimension: mode === 'r3' ? 3 : 2, topology: mode === 'r3' ? 'r3' : 't2', komi: KOMI });
+        const topology = mode === 'r3'
+            ? 'r3'
+            : mode === 'sphere'
+                ? SPHERE_GO_TOPOLOGY
+                : mode === 'klein' ? KLEIN_BOTTLE_TOPOLOGY : 't2';
+        return new GoGameLogic({
+            size,
+            width: size,
+            height: mode === 'klein' ? 19 : size,
+            dimension: mode === 'r3' ? 3 : 2,
+            topology,
+            komi: KOMI
+        });
     }
 
     bindEvents() {
         this.modeSelect.addEventListener('change', () => this.resetGame());
+        this.sphereViewSelect.addEventListener('change', () => {
+            this.renderer.mode = '';
+            this.renderer.renderStones(this.logic);
+        });
         this.sizeSelect.addEventListener('change', () => this.resetGame());
         this.timerSelect.addEventListener('change', () => this.resetGame());
         this.gameModeSelect.addEventListener('change', () => this.updateOnlineControls());
@@ -540,6 +854,12 @@ class Go3DApp {
             await navigator.clipboard?.writeText(this.shareLinkInput.value);
             this.copyLinkBtn.textContent = tr('online.copied');
             window.setTimeout(() => { this.copyLinkBtn.textContent = tr('online.copy'); }, 1000);
+        });
+        this.chatSendBtn?.addEventListener('click', () => this.sendChatMessage());
+        this.chatInput?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' || event.shiftKey) return;
+            event.preventDefault();
+            this.sendChatMessage();
         });
         document.querySelectorAll('[data-lang-option]').forEach((button) => {
             button.addEventListener('click', () => setLanguage(button.dataset.langOption));
@@ -698,8 +1018,16 @@ class Go3DApp {
 
     updateUI() {
         const isR3 = this.logic.topology === 'r3';
-        this.modeDisplay.textContent = tr(isR3 ? 'mode.r3Display' : 'mode.t2Display', { size: this.logic.size });
-        this.modeInfo.textContent = tr(isR3 ? 'mode.r3Info' : 'mode.t2Info');
+        const isSphere = this.logic.topology === SPHERE_GO_TOPOLOGY;
+        const isKlein = this.logic.topology === KLEIN_BOTTLE_TOPOLOGY;
+        const modeKey = isR3 ? 'r3' : isSphere ? 'sphere' : isKlein ? 'klein' : 't2';
+        this.modeDisplay.textContent = tr(`mode.${modeKey}Display`, {
+            size: this.logic.size,
+            width: this.logic.width,
+            height: this.logic.height
+        });
+        this.modeInfo.textContent = tr(`mode.${modeKey}Info`);
+        this.sphereViewGroup.hidden = !isSphere;
         this.turnEl.textContent = this.logic.gameOver ? this.resultText() : this.logic.scoringPending ? tr('status.countingPending') : tr('status.toPlay', { color: this.colorName(this.logic.currentPlayer) });
         this.blackCapturedEl.textContent = tr('captured.stones', { count: this.logic.captures.black });
         this.whiteCapturedEl.textContent = tr('captured.stones', { count: this.logic.captures.white });
@@ -710,6 +1038,7 @@ class Go3DApp {
         this.updateTimerDisplay();
         this.renderHistory();
         this.renderScore();
+        this.renderChatMessages();
         this.renderer.renderStones(this.logic);
         if (!this.network?.isConnected && this.gameModeSelect.value !== 'online') {
             this.onlineColorEl.textContent = tr('online.localStatus');
@@ -776,10 +1105,75 @@ class Go3DApp {
         this.onlineColorEl.textContent = color ? tr('online.onlineAs', { color: this.colorName(color) }) : tr('online.localStatus');
     }
 
+    escapeHTML(value) {
+        return String(value).replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[char]);
+    }
+
+    renderChatMessages() {
+        const canChat = this.gameModeSelect.value === 'online' && this.network?.isConnected;
+        if (this.chatInput) this.chatInput.disabled = !canChat;
+        if (this.chatSendBtn) this.chatSendBtn.disabled = !canChat;
+        if (!this.chatMessagesEl) return;
+        if (this.chatMessages.length === 0) {
+            this.chatMessagesEl.innerHTML = `<div class="chat-empty">${this.escapeHTML(tr('chat.empty'))}</div>`;
+            return;
+        }
+        this.chatMessagesEl.innerHTML = this.chatMessages.map((message) => {
+            const mine = message.senderId && this.network?.peer?.id && message.senderId === this.network.peer.id;
+            const author = message.author === 'black' || message.author === 'white'
+                ? this.colorName(message.author)
+                : message.author || tr('chat.player');
+            const time = message.time ? new Date(message.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            return `<div class="chat-message${mine ? ' mine' : ''}"><div class="chat-meta">${this.escapeHTML(author)}${time ? ` - ${this.escapeHTML(time)}` : ''}</div><div class="chat-text">${this.escapeHTML(message.text || '')}</div></div>`;
+        }).join('');
+        this.chatMessagesEl.scrollTop = this.chatMessagesEl.scrollHeight;
+    }
+
+    sendChatMessage() {
+        const text = this.chatInput?.value.trim();
+        if (!text) return;
+        if (this.gameModeSelect.value !== 'online' || !this.network?.isConnected) {
+            this.setStatus(tr('chat.connectFirst'));
+            this.updateUI();
+            return;
+        }
+        const message = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            author: this.myColor || this.logic.currentPlayer,
+            senderId: this.network.peer?.id || '',
+            text,
+            time: Date.now()
+        };
+        this.receiveChatMessage(message);
+        this.network.sendChat(message);
+        if (this.chatInput) this.chatInput.value = '';
+    }
+
+    receiveChatMessage(message) {
+        if (!message || typeof message.text !== 'string') return;
+        const cleaned = {
+            id: message.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            author: message.author || 'player',
+            senderId: message.senderId || '',
+            text: message.text.slice(0, 240),
+            time: message.time || Date.now()
+        };
+        if (this.chatMessages.some((item) => item.id === cleaned.id)) return;
+        this.chatMessages.push(cleaned);
+        if (this.chatMessages.length > 80) this.chatMessages.shift();
+        this.renderChatMessages();
+    }
+
     getNetworkSettings() {
-        const mode = this.modeSelect.value === 't2' ? 't2' : 'r3';
+        const mode = ['r3', 't2', 'sphere', 'klein'].includes(this.modeSelect.value) ? this.modeSelect.value : 'r3';
         return {
-            variant: mode === 't2' ? 't2go' : 'r3go',
+            variant: mode === 't2' ? 't2go' : mode === 'sphere' ? 's2go' : mode === 'klein' ? 'kleingo' : 'r3go',
             mode,
             size: Number(this.sizeSelect.value) || 19,
             timer: Number(this.timerSelect.value) || 0
@@ -801,7 +1195,11 @@ class Go3DApp {
         if (!state?.logic) return;
         this.stopTimer();
         this.logic.importState(state.logic);
-        this.modeSelect.value = this.logic.topology === 't2' ? 't2' : 'r3';
+        this.modeSelect.value = this.logic.topology === 't2'
+            ? 't2'
+            : this.logic.topology === SPHERE_GO_TOPOLOGY
+                ? 'sphere'
+                : this.logic.topology === KLEIN_BOTTLE_TOPOLOGY ? 'klein' : 'r3';
         this.sizeSelect.value = String(this.logic.size);
         this.timerSelect.value = String(state.timerValue ?? state.timeLimit ?? 0);
         this.timeLimit = Number(state.timeLimit) || 0;
@@ -818,6 +1216,10 @@ class Go3DApp {
 
     broadcastState() {
         if (this.network.isConnected) this.network.sendState();
+    }
+
+    sphereView() {
+        return this.sphereViewSelect?.value === '2d' ? '2d' : '3d';
     }
 }
 

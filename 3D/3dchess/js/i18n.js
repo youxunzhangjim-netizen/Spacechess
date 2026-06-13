@@ -177,10 +177,9 @@ const DICTIONARY = {
             noTimer: 'No Timer',
             fiveMinutes: '5 Minutes',
             tenMinutes: '10 Minutes',
-            fifteenMinutes: '15 Minutes',
             thirtyMinutes: '30 Minutes',
             oneHour: '1 Hour',
-            twentyFourHours: '24 Hours'
+            oneDay: '1 Day'
         },
         history: {
             title: 'Move History',
@@ -385,10 +384,9 @@ const DICTIONARY = {
             noTimer: '無計時',
             fiveMinutes: '5 分鐘',
             tenMinutes: '10 分鐘',
-            fifteenMinutes: '15 分鐘',
             thirtyMinutes: '30 分鐘',
             oneHour: '1 小時',
-            twentyFourHours: '24 小時'
+            oneDay: '1 天'
         },
         history: {
             title: '走法記錄',

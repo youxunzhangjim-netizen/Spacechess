@@ -2,6 +2,12 @@ import { TorusThreeJSRenderer } from './TorusThreeJSRenderer.js';
 import { TorusNetworkManager } from './TorusNetworkManager.js';
 import { applyLanguage, hasTranslation, t } from './i18n.js';
 import {
+    applyCliffordToEntity,
+    canCliffordCapture,
+    normalizeTransport,
+    transportLabelAcrossEdges
+} from '../../../js/algebra/PauliAlgebra.js';
+import {
     BOARD_WIDTH,
     createPiece,
     MAIN_ROW,
@@ -46,6 +52,7 @@ export class TorusChessGame {
         this.statusKey = 'status.start';
         this.statusParams = {};
         this.chatMessages = [];
+        this.cliffordChessEnabled = false;
 
         this.renderer = this.createRenderer();
         this.network = this.createNetwork();
@@ -289,6 +296,7 @@ export class TorusChessGame {
             this.setPiece(legalMove.capturePos.x, legalMove.capturePos.y, legalMove.capturePos.sheet || 0, null);
         }
         piece.hasMoved = true;
+        this.applyMoveCliffordTransport(piece, legalMove);
         if (piece.type === 'P' && legalMove.flipPawnDirection) {
             piece.pawnDirection = -this.pawnForwardDirection(piece, fromCoord.y, fromCoord.sheet);
         }
@@ -428,7 +436,9 @@ export class TorusChessGame {
 
                     const targetPiece = this.getPiece(target.x, target.y, target.sheet);
                     if (targetPiece && targetPiece.color !== piece.color && targetPiece.type !== 'K') {
-                        moves.push({ ...target, capture: true });
+                        if (this.isCliffordCaptureLegal(piece, targetPiece)) {
+                            moves.push({ ...target, capture: true });
+                        }
                     }
                 }
             }
@@ -507,7 +517,9 @@ export class TorusChessGame {
 
                     if (target.color !== piece.color) {
                         if (forAttack || target.type !== 'K') {
-                            moves.push({ ...targetCoord, capture: true });
+                            if (forAttack || this.isCliffordCaptureLegal(piece, target)) {
+                                moves.push({ ...targetCoord, capture: true });
+                            }
                         }
                     }
                     break;
@@ -560,8 +572,39 @@ export class TorusChessGame {
         }
 
         if (targetPiece.color !== piece.color && (forAttack || targetPiece.type !== 'K')) {
-            moves.push({ x: target.x, y: target.y, sheet: target.sheet, capture: true });
+            if (forAttack || this.isCliffordCaptureLegal(piece, targetPiece)) {
+                moves.push({ ...target, capture: true });
+            }
         }
+    }
+
+    isCliffordCaptureLegal(attacker, defender) {
+        return !this.cliffordChessEnabled || canCliffordCapture(attacker, defender);
+    }
+
+    applyMoveCliffordTransport(piece, move) {
+        const crossings = Array.isArray(move?.boundaryCrossings) ? move.boundaryCrossings : [];
+        if (!piece || crossings.length === 0) return piece;
+        const transports = crossings
+            .map((crossing) => normalizeTransport(crossing.transport))
+            .filter((transport) => transport !== 'identity');
+        if (transports.length > 0) {
+            piece.pauli = transportLabelAcrossEdges(piece.pauli || 'I', transports.map((transport) => ({ transport })));
+        }
+        return piece;
+    }
+
+    applyCliffordAction(x, y, sheet = 0, generator = 'H', color = this.currentPlayer) {
+        if (!['H', 'S'].includes(generator)) return { ok: false, error: 'Unknown Clifford generator.' };
+        const coord = this.canonicalCoord(x, y, sheet);
+        const piece = this.getPiece(coord.x, coord.y, coord.sheet);
+        if (!piece || piece.color !== color) return { ok: false, error: 'Choose one of your pieces.' };
+        applyCliffordToEntity(piece, generator);
+        this.currentPlayer = this.opponentOf(this.currentPlayer);
+        this.renderer.renderPieces3D(this.board);
+        this.updateUI();
+        if (this.gameMode === 'online') this.network.persistState();
+        return { ok: true, pauli: piece.pauli };
     }
 
     getCastlingMoves(x, y, sheet = 0) {

@@ -169,6 +169,9 @@ export class ChessGame {
         }
 
         this.startGameIfNeeded();
+        if (legalMove.suicide) {
+            return this.applySuicideMove(piece, from, legalMove, options);
+        }
 
         const captured = this.getPiece(to.r, to.c);
         const enPassantCaptured = legalMove.enPassant && legalMove.capturePos
@@ -226,6 +229,56 @@ export class ChessGame {
 
         if (this.gameMode === 'online') this.network.persistState();
 
+        if (!options.remote && this.gameMode === 'online' && this.network.isConnected) {
+            this.network.sendMove(sentMove);
+        }
+
+        return true;
+    }
+
+    applySuicideMove(piece, from, legalMove, options = {}) {
+        const movedType = piece.type;
+        const opponent = this.opponentOf(piece.color);
+        const edge = this.exitEdgeForMove(from, legalMove);
+
+        this.board[from.r][from.c] = null;
+        piece.hasMoved = true;
+        this.capturedPieces[opponent].push(this.pieceIcon(piece));
+        this.halfMoveClock = 0;
+        this.enPassantTarget = null;
+        this.moveHistory.push({
+            kind: 'suicide',
+            color: piece.color,
+            type: movedType,
+            from: this.formatCoord(from),
+            edge
+        });
+        this.currentPlayer = opponent;
+        this.positionHistory.push(this.getBoardHash());
+        this.clearSelection();
+
+        if (movedType === 'K') {
+            this.gameOver = true;
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            this.setStatus('status.kingSuicideWin', { color: opponent });
+        } else {
+            this.setStatus('status.pieceSuicide', {
+                color: piece.color,
+                type: movedType,
+                edge
+            });
+        }
+
+        this.renderBoard();
+        this.updateUI();
+        if (!this.gameOver) this.checkGameEnd();
+
+        const sentMove = {
+            from,
+            to: { r: legalMove.r, c: legalMove.c },
+            suicide: true
+        };
+        if (this.gameMode === 'online') this.network.persistState();
         if (!options.remote && this.gameMode === 'online' && this.network.isConnected) {
             this.network.sendMove(sentMove);
         }
@@ -378,6 +431,36 @@ export class ChessGame {
                 boardEl.appendChild(square);
             }
         }
+
+        this.renderOpenBoundaryMoves();
+    }
+
+    renderOpenBoundaryMoves() {
+        const layer = document.getElementById('openBoundaryMoves');
+        if (!layer) return;
+        layer.innerHTML = '';
+        if (this.boundaryCondition !== 'open' || !this.selectedSquare || !this.showMoveHints) return;
+
+        const exits = this.legalMoves.filter((move) => move.suicide);
+        exits.forEach((move, index) => {
+            const point = this.exitPointForMove(this.selectedSquare, move);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'open-exit-move';
+            button.style.left = `${point.x * 100}%`;
+            button.style.top = `${point.y * 100}%`;
+            button.style.setProperty('--exit-index', index);
+            button.textContent = this.exitArrow(point.edge);
+            button.setAttribute('aria-label', this.tr('boundary.exitMove', {
+                edge: this.tr(`boundary.edges.${point.edge}`)
+            }));
+            button.addEventListener('click', async () => {
+                const from = { ...this.selectedSquare };
+                this.clearSelection();
+                await this.applyMove({ from, to: { r: move.r, c: move.c }, suicide: true });
+            });
+            layer.appendChild(button);
+        });
     }
 
     updateUI() {
@@ -724,6 +807,12 @@ export class ChessGame {
         if (typeof entry === 'string') return entry;
         if (!entry || typeof entry !== 'object') return '';
         if (entry.kind === 'castle') return this.tr('history.castle', entry);
+        if (entry.kind === 'suicide') {
+            return this.tr('history.suicide', {
+                ...entry,
+                edge: this.tr(`boundary.edges.${entry.edge}`)
+            });
+        }
         return this.tr('history.move', entry);
     }
 
@@ -762,6 +851,49 @@ export class ChessGame {
 
     formatCoord({ r, c }) {
         return `${String.fromCharCode(97 + c)}${8 - r}`;
+    }
+
+    exitPointForMove(from, move) {
+        const startX = from.c + 0.5;
+        const startY = from.r + 0.5;
+        const deltaX = move.c - from.c;
+        const deltaY = move.r - from.r;
+        const intersections = [];
+
+        if (deltaX < 0) intersections.push({ t: (0 - startX) / deltaX, edge: 'left' });
+        if (deltaX > 0) intersections.push({ t: (SIZE - startX) / deltaX, edge: 'right' });
+        if (deltaY < 0) intersections.push({ t: (0 - startY) / deltaY, edge: 'top' });
+        if (deltaY > 0) intersections.push({ t: (SIZE - startY) / deltaY, edge: 'bottom' });
+
+        const crossing = intersections
+            .filter(({ t }) => t >= 0 && t <= 1)
+            .sort((a, b) => a.t - b.t)[0] || { t: 1, edge: this.exitEdgeForMove(from, move) };
+        const x = Math.max(0, Math.min(SIZE, startX + deltaX * crossing.t)) / SIZE;
+        const y = Math.max(0, Math.min(SIZE, startY + deltaY * crossing.t)) / SIZE;
+        return { x, y, edge: crossing.edge };
+    }
+
+    exitEdgeForMove(from, move) {
+        const point = this.exitPointForSimpleMove(from, move);
+        return point.edge;
+    }
+
+    exitPointForSimpleMove(from, move) {
+        const overflow = [
+            { edge: 'top', amount: Math.max(0, -move.r) },
+            { edge: 'bottom', amount: Math.max(0, move.r - (SIZE - 1)) },
+            { edge: 'left', amount: Math.max(0, -move.c) },
+            { edge: 'right', amount: Math.max(0, move.c - (SIZE - 1)) }
+        ].sort((a, b) => b.amount - a.amount);
+        return overflow[0].amount > 0 ? overflow[0] : {
+            edge: Math.abs(move.r - from.r) >= Math.abs(move.c - from.c)
+                ? (move.r < from.r ? 'top' : 'bottom')
+                : (move.c < from.c ? 'left' : 'right')
+        };
+    }
+
+    exitArrow(edge) {
+        return { top: '\u2191', right: '\u2192', bottom: '\u2193', left: '\u2190' }[edge] || '\u2197';
     }
 
     opponentOf(color) {

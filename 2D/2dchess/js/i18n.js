@@ -9,7 +9,7 @@ const DICTIONARY = {
         },
         app: {
             title: '2D Chess with Boundary Conditions',
-            subtitle: 'Local and online multiplayer with forbidden, reflection, and periodic boundaries.'
+            subtitle: 'Local and online multiplayer with forbidden, open, reflection, and periodic boundaries.'
         },
         colors: {
             white: 'White',
@@ -96,14 +96,23 @@ const DICTIONARY = {
         boundary: {
             names: {
                 forbidden: 'Forbidden',
+                open: 'Open',
                 reflection: 'Reflection',
                 periodic: 'Periodic'
             },
             info: {
                 forbidden: '<strong>Forbidden:</strong> Pieces cannot move outside the board.',
+                open: '<strong>Open:</strong> A piece may follow a legal movement path across any edge. It is then removed as a suicide. A king suicide loses immediately.',
                 reflection: '<strong>Reflection:</strong> Pieces reflect around the left/right edge-square centers.',
                 periodic: '<strong>Periodic:</strong> Board wraps around left/right edges.'
-            }
+            },
+            edges: {
+                top: 'top edge',
+                right: 'right edge',
+                bottom: 'bottom edge',
+                left: 'left edge'
+            },
+            exitMove: ({ edge }) => `Move out through the ${edge}`
         },
         timer: {
             none: 'No Timer',
@@ -118,6 +127,8 @@ const DICTIONARY = {
             started: 'Game started...',
             castle: ({ color, side, from, to }, lang) =>
                 `${label(lang, `colors.${color}`)} castles ${side} ${from} -> ${to}`,
+            suicide: ({ color, type, from, edge }, lang) =>
+                `${label(lang, `colors.${color}`)} ${pieceName(lang, type)} ${from} exits through the ${edge} and is removed`,
             move: ({ color, type, from, to, capturedType, promotionType }, lang) => {
                 const capture = capturedType ? ` captures ${pieceName(lang, capturedType)}` : '';
                 const promotion = promotionType ? ` promotes to ${pieceName(lang, promotionType)}` : '';
@@ -169,7 +180,11 @@ const DICTIONARY = {
             drawBy50Move: 'Draw by 50-move rule.',
             drawByRepetition: 'Draw by threefold repetition.',
             hintsHidden: 'Move hints hidden.',
-            hintsShown: 'Move hints shown.'
+            hintsShown: 'Move hints shown.',
+            pieceSuicide: ({ color, type, edge }, lang) =>
+                `${label(lang, `colors.${color}`)} ${pieceName(lang, type)} exited through the ${label(lang, `boundary.edges.${edge}`)} and was removed.`,
+            kingSuicideWin: ({ color }, lang) =>
+                `${label(lang, `colors.${color}`)} wins because the opposing king left the board.`
         },
         alerts: {
             modeLocked: 'Game mode cannot change after the game starts or after online connection.',
@@ -186,7 +201,7 @@ const DICTIONARY = {
         },
         app: {
             title: '2D 邊界條件西洋棋',
-            subtitle: '本機與線上對戰，支援禁止、反射與週期邊界。'
+            subtitle: '本機與線上對戰，支援禁止、開放、反射與週期邊界。'
         },
         colors: {
             white: '白方',
@@ -265,14 +280,23 @@ const DICTIONARY = {
         boundary: {
             names: {
                 forbidden: '禁止',
+                open: '開放',
                 reflection: '反射',
                 periodic: '週期'
             },
             info: {
                 forbidden: '<strong>禁止：</strong>棋子不能移出棋盤。',
+                open: '<strong>開放：</strong>棋子可沿合法走法從任一邊界離開，離開後自殺並移除。王離開棋盤時立即判負。',
                 reflection: '<strong>反射：</strong>棋子會以左右邊界格的中心反射。',
                 periodic: '<strong>週期：</strong>左右邊界相接並循環。'
-            }
+            },
+            edges: {
+                top: '上邊界',
+                right: '右邊界',
+                bottom: '下邊界',
+                left: '左邊界'
+            },
+            exitMove: ({ edge }) => `從${edge}移出棋盤`
         },
         timer: {
             none: '不計時',
@@ -287,6 +311,8 @@ const DICTIONARY = {
             started: '遊戲開始...',
             castle: ({ color, side, from, to }, lang) =>
                 `${label(lang, `colors.${color}`)}王車易位 ${side} ${from} -> ${to}`,
+            suicide: ({ color, type, from, edge }, lang) =>
+                `${label(lang, `colors.${color}`)} ${pieceName(lang, type)} ${from} 從${edge}離開並移除`,
             move: ({ color, type, from, to, capturedType, promotionType }, lang) => {
                 const capture = capturedType ? ` 吃 ${pieceName(lang, capturedType)}` : '';
                 const promotion = promotionType ? ` 升變為 ${pieceName(lang, promotionType)}` : '';
@@ -338,7 +364,11 @@ const DICTIONARY = {
             drawBy50Move: '50 步規則，和棋。',
             drawByRepetition: '三次重複，和棋。',
             hintsHidden: '已隱藏走法提示。',
-            hintsShown: '已顯示走法提示。'
+            hintsShown: '已顯示走法提示。',
+            pieceSuicide: ({ color, type, edge }, lang) =>
+                `${label(lang, `colors.${color}`)} ${pieceName(lang, type)}從${label(lang, `boundary.edges.${edge}`)}離開並已移除。`,
+            kingSuicideWin: ({ color }, lang) =>
+                `對方王離開棋盤，${label(lang, `colors.${color}`)}獲勝。`
         },
         alerts: {
             modeLocked: '遊戲開始或連線後不能更改模式。',

@@ -1,11 +1,13 @@
 {
   "name": "topological-boardgame",
   "private": true,
+  "type": "module",
   "workspaces": [
     "2D/2dchess",
     "2D/2dgo",
     "3D/3dchess",
-    "3D/3dgo"
+    "3D/3dgo",
+    "4D/4dgo"
   ],
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5172",
@@ -20,7 +22,9 @@
     "build:2dgo": "npm run build --workspace 2dgo",
     "build:3dgo": "npm run build --workspace 3dgo",
     "dev:2dgo": "npm run dev --workspace 2dgo",
-    "dev:3dgo": "npm run dev --workspace 3dgo"
+    "dev:3dgo": "npm run dev --workspace 3dgo",
+    "build:4dgo": "npm run build --workspace 4dgo",
+    "dev:4dgo": "npm run dev --workspace 4dgo"
   },
   "dependencies": {
     "peerjs": "^1.5.5",

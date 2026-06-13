@@ -25,6 +25,7 @@ run(['run', 'build', '--workspace', '2dchess']);
 run(['run', 'build', '--workspace', '2dgo']);
 run(['run', 'build', '--workspace', '3dchess']);
 run(['run', 'build', '--workspace', '3dgo']);
+run(['run', 'build', '--workspace', '4dgo']);
 
 const launcherOutput = join(root, '.launcher-dist');
 await viteBuild({
@@ -48,7 +49,7 @@ copy(join(root, '2D', '2dchess', 'dist'), join(output, '2D', '2dchess'));
 copy(join(root, '2D', '2dgo', 'dist'), join(output, '2D', '2dgo'));
 copy(join(root, '3D', '3dchess', 'dist'), join(output, '3D', '3dchess'));
 copy(join(root, '3D', '3dgo', 'dist'), join(output, '3D', '3dgo'));
-copy(join(root, '4D'), join(output, '4D'));
+copy(join(root, '4D', '4dgo', 'dist'), join(output, '4D', '4dgo'));
 writeFileSync(join(output, '.nojekyll'), '');
 rmSync(launcherOutput, { recursive: true, force: true });
 

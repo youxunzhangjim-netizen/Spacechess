@@ -68,7 +68,10 @@ export class PieceMovement {
         if (forAttack) return moves;
 
         const oneRow = row + direction;
-        if (this.inBounds(oneRow, col) && !this.game.getPiece(oneRow, col)) {
+        const oneStep = this.applyBoundary(oneRow, col);
+        if (oneStep.valid && oneStep.offBoard) {
+            moves.push(this.suicideMove(oneRow, col));
+        } else if (oneStep.valid && !this.game.getPiece(oneStep.r, oneStep.c)) {
             moves.push({ r: oneRow, c: col, capture: false });
 
             const startRow = piece.color === 'white' ? 6 : 1;
@@ -105,6 +108,10 @@ export class PieceMovement {
             for (let step = 1; step <= SIZE * 2; step++) {
                 const resolved = this.applyBoundary(row + dr * step, col + dc * step);
                 if (!resolved.valid) break;
+                if (resolved.offBoard) {
+                    if (!forAttack) moves.push(this.suicideMove(resolved.r, resolved.c));
+                    break;
+                }
                 if (resolved.r === row && resolved.c === col) break;
 
                 const key = `${resolved.r},${resolved.c}`;
@@ -137,6 +144,10 @@ export class PieceMovement {
         for (const [dr, dc] of offsets) {
             const target = this.applyBoundary(row + dr, col + dc);
             if (!target.valid || (target.r === row && target.c === col)) continue;
+            if (target.offBoard) {
+                if (!forAttack) moves.push(this.suicideMove(target.r, target.c));
+                continue;
+            }
             this.addLeaperMove(moves, target, piece, forAttack);
         }
 
@@ -152,6 +163,10 @@ export class PieceMovement {
                 if (dr === 0 && dc === 0) continue;
                 const target = this.applyBoundary(row + dr, col + dc);
                 if (!target.valid || (target.r === row && target.c === col)) continue;
+                if (target.offBoard) {
+                    if (!forAttack) moves.push(this.suicideMove(target.r, target.c));
+                    continue;
+                }
                 this.addLeaperMove(moves, target, piece, forAttack);
             }
         }
@@ -236,6 +251,16 @@ export class PieceMovement {
         const piece = this.game.getPiece(fromRow, fromCol);
         if (!piece) return true;
 
+        if (move.suicide) {
+            this.game.board[fromRow][fromCol] = null;
+            const king = this.findKing(piece.color);
+            const inCheck = piece.type === 'K'
+                ? false
+                : !king || this.isSquareAttacked(king.r, king.c, this.opponentOf(piece.color));
+            this.game.board[fromRow][fromCol] = piece;
+            return inCheck;
+        }
+
         const captured = this.game.getPiece(move.r, move.c);
         const epCaptured = move.enPassant && move.capturePos
             ? this.game.getPiece(move.capturePos.r, move.capturePos.c)
@@ -318,6 +343,11 @@ export class PieceMovement {
     }
 
     applyBoundary(row, col) {
+        if (this.game.boundaryCondition === 'open') {
+            const offBoard = row < 0 || row >= SIZE || col < 0 || col >= SIZE;
+            return { valid: true, offBoard, r: row, c: col };
+        }
+
         if (row < 0 || row >= SIZE) return { valid: false, r: row, c: col };
 
         if (this.game.boundaryCondition === 'forbidden') {
@@ -352,11 +382,15 @@ export class PieceMovement {
     uniqueMoves(moves) {
         const seen = new Set();
         return moves.filter((move) => {
-            const key = `${move.r},${move.c}`;
+            const key = `${move.r},${move.c},${move.suicide ? 'suicide' : 'board'}`;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
         });
+    }
+
+    suicideMove(row, col) {
+        return { r: row, c: col, capture: false, suicide: true };
     }
 
     opponentOf(color) {

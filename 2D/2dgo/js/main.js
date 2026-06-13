@@ -35,6 +35,9 @@ class Go2DApp {
         this.roomIdInput = document.getElementById('roomIdInput');
         this.copyLinkBtn = document.getElementById('copyLinkBtn');
         this.shareLinkInput = document.getElementById('shareLinkInput');
+        this.chatMessagesEl = document.getElementById('chatMessages');
+        this.chatInput = document.getElementById('chatInput');
+        this.chatSendBtn = document.getElementById('chatSendBtn');
 
         this.applyUrlSettings();
         this.logic = new GoGameLogic({ size: this.boardSize(), topology: this.boundarySelect.value, dimension: 2, komi: KOMI });
@@ -47,6 +50,7 @@ class Go2DApp {
         this.timerInterval = null;
         this.hoverCoord = null;
         this.lastBoardRect = null;
+        this.chatMessages = [];
 
         this.bindEvents();
         this.resize();
@@ -114,6 +118,12 @@ class Go2DApp {
             await navigator.clipboard?.writeText(this.shareLinkInput.value);
             this.copyLinkBtn.textContent = 'Copied';
             window.setTimeout(() => { this.copyLinkBtn.textContent = 'Copy'; }, 1000);
+        });
+        this.chatSendBtn?.addEventListener('click', () => this.sendChatMessage());
+        this.chatInput?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' || event.shiftKey) return;
+            event.preventDefault();
+            this.sendChatMessage();
         });
     }
 
@@ -433,6 +443,7 @@ class Go2DApp {
         this.updateTimerDisplay();
         this.renderHistory();
         this.renderScore();
+        this.renderChatMessages();
         this.render();
     }
 
@@ -490,6 +501,71 @@ class Go2DApp {
     setOnlineColor(color) {
         this.myColor = color;
         this.onlineColorEl.textContent = color ? `Online as ${this.capitalize(color)}` : 'Local pass and play';
+    }
+
+    escapeHTML(value) {
+        return String(value).replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[char]);
+    }
+
+    renderChatMessages() {
+        const canChat = this.gameModeSelect.value === 'online' && this.network?.isConnected;
+        if (this.chatInput) this.chatInput.disabled = !canChat;
+        if (this.chatSendBtn) this.chatSendBtn.disabled = !canChat;
+        if (!this.chatMessagesEl) return;
+        if (this.chatMessages.length === 0) {
+            this.chatMessagesEl.innerHTML = '<div class="chat-empty">Connect online to chat.</div>';
+            return;
+        }
+        this.chatMessagesEl.innerHTML = this.chatMessages.map((message) => {
+            const mine = message.senderId && this.network?.peer?.id && message.senderId === this.network.peer.id;
+            const author = message.author === 'black' || message.author === 'white'
+                ? this.capitalize(message.author)
+                : message.author || 'Player';
+            const time = message.time ? new Date(message.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            return `<div class="chat-message${mine ? ' mine' : ''}"><div class="chat-meta">${this.escapeHTML(author)}${time ? ` - ${this.escapeHTML(time)}` : ''}</div><div class="chat-text">${this.escapeHTML(message.text || '')}</div></div>`;
+        }).join('');
+        this.chatMessagesEl.scrollTop = this.chatMessagesEl.scrollHeight;
+    }
+
+    sendChatMessage() {
+        const text = this.chatInput?.value.trim();
+        if (!text) return;
+        if (this.gameModeSelect.value !== 'online' || !this.network?.isConnected) {
+            this.setStatus('Connect online before chatting.');
+            this.updateUI();
+            return;
+        }
+        const message = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            author: this.myColor || this.logic.currentPlayer,
+            senderId: this.network.peer?.id || '',
+            text,
+            time: Date.now()
+        };
+        this.receiveChatMessage(message);
+        this.network.sendChat(message);
+        if (this.chatInput) this.chatInput.value = '';
+    }
+
+    receiveChatMessage(message) {
+        if (!message || typeof message.text !== 'string') return;
+        const cleaned = {
+            id: message.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            author: message.author || 'player',
+            senderId: message.senderId || '',
+            text: message.text.slice(0, 240),
+            time: message.time || Date.now()
+        };
+        if (this.chatMessages.some((item) => item.id === cleaned.id)) return;
+        this.chatMessages.push(cleaned);
+        if (this.chatMessages.length > 80) this.chatMessages.shift();
+        this.renderChatMessages();
     }
 
     getNetworkSettings() {

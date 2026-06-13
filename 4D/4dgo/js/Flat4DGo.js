@@ -4,6 +4,8 @@ import {
     setPauliLabel
 } from '../../../js/algebra/PauliAlgebra.js';
 
+export const FLAT_4D_GO_TOPOLOGY = 'flat_4d_go';
+
 export const COLORS = {
     empty: 0,
     black: 1,
@@ -24,23 +26,30 @@ export function valueToColor(value) {
     return '';
 }
 
-export function normalizeTopology(topology) {
-    const value = String(topology || '').toLowerCase();
-    if (['pbc', 'pbcx', 'pbc-x', 't2'].includes(value)) return 'pbc';
-    return 'open2d';
+export function normalizeSizes(options = {}) {
+    const size = (value, fallback) => {
+        const parsed = Math.floor(Number(value));
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+    };
+    return {
+        nx: size(options.nx, 5),
+        ny: size(options.ny, 5),
+        nz: size(options.nz, 5),
+        nw: size(options.nw, 5)
+    };
 }
 
-export class GoGameLogic {
+export class Flat4DGoGame {
     constructor(options = {}) {
         this.reset(options);
     }
 
-    reset({ size = 9, dimension = 2, topology = 'open2d', komi = 7.5 } = {}) {
-        this.size = Number(size) || 9;
-        this.dimension = Number(dimension) || 2;
-        this.topology = normalizeTopology(topology);
+    reset({ nx = 5, ny = 5, nz = 5, nw = 5, komi = 7.5 } = {}) {
+        this.topology = FLAT_4D_GO_TOPOLOGY;
+        this.sizes = normalizeSizes({ nx, ny, nz, nw });
+        this.dimension = 4;
         this.komi = Number.isFinite(Number(komi)) ? Number(komi) : 7.5;
-        this.total = this.size ** this.dimension;
+        this.total = this.sizes.nx * this.sizes.ny * this.sizes.nz * this.sizes.nw;
         this.board = new Uint8Array(this.total);
         this.pauliLabels = Array(this.total).fill('I');
         this.cliffordGoEnabled = false;
@@ -62,54 +71,41 @@ export class GoGameLogic {
         return coord.join(',');
     }
 
+    containsCoord(coord) {
+        return Array.isArray(coord)
+            && coord.length === 4
+            && coord.every((value) => Number.isInteger(value))
+            && coord[0] >= 0 && coord[0] < this.sizes.nx
+            && coord[1] >= 0 && coord[1] < this.sizes.ny
+            && coord[2] >= 0 && coord[2] < this.sizes.nz
+            && coord[3] >= 0 && coord[3] < this.sizes.nw;
+    }
+
     indexFromCoord(coord) {
         if (!this.containsCoord(coord)) return -1;
-        if (this.dimension === 3) {
-            return coord[0] + this.size * (coord[1] + this.size * coord[2]);
-        }
-        return coord[0] + this.size * coord[1];
+        const [x, y, z, w] = coord;
+        return x + this.sizes.nx * (y + this.sizes.ny * (z + this.sizes.nz * w));
     }
 
     coordFromIndex(index) {
-        const value = Number(index);
-        if (this.dimension === 3) {
-            const z = Math.floor(value / (this.size * this.size));
-            const rem = value - z * this.size * this.size;
-            const y = Math.floor(rem / this.size);
-            const x = rem - y * this.size;
-            return [x, y, z];
-        }
-        const y = Math.floor(value / this.size);
-        const x = value - y * this.size;
-        return [x, y];
-    }
-
-    containsCoord(coord) {
-        return Array.isArray(coord)
-            && coord.length === this.dimension
-            && coord.every((value) => Number.isInteger(value) && value >= 0 && value < this.size);
-    }
-
-    isWrapAxis(axis) {
-        return this.topology === 'pbc' && (axis === 0 || axis === 1);
-    }
-
-    stepCoord(coord, axis, delta) {
-        const next = [...coord];
-        next[axis] += delta;
-        if (next[axis] < 0 || next[axis] >= this.size) {
-            if (!this.isWrapAxis(axis)) return null;
-            next[axis] = (next[axis] + this.size) % this.size;
-        }
-        return next;
+        let value = Number(index);
+        const x = value % this.sizes.nx;
+        value = Math.floor(value / this.sizes.nx);
+        const y = value % this.sizes.ny;
+        value = Math.floor(value / this.sizes.ny);
+        const z = value % this.sizes.nz;
+        const w = Math.floor(value / this.sizes.nz);
+        return [x, y, z, w];
     }
 
     neighborsFromCoord(coord) {
+        if (!this.containsCoord(coord)) return [];
         const neighbors = [];
-        for (let axis = 0; axis < this.dimension; axis++) {
+        for (let axis = 0; axis < 4; axis++) {
             for (const delta of [-1, 1]) {
-                const next = this.stepCoord(coord, axis, delta);
-                if (next) neighbors.push(next);
+                const next = [...coord];
+                next[axis] += delta;
+                if (this.containsCoord(next)) neighbors.push(next);
             }
         }
         return neighbors;
@@ -127,10 +123,9 @@ export class GoGameLogic {
 
     getGroupAndLiberties(board, startIndex) {
         const color = board[startIndex];
-        const group = new Set();
+        const group = new Set([startIndex]);
         const liberties = new Set();
         const stack = [startIndex];
-        group.add(startIndex);
 
         while (stack.length) {
             const index = stack.pop();
@@ -150,12 +145,12 @@ export class GoGameLogic {
 
     tryPlay(coord, color = this.currentPlayer, options = {}) {
         if (this.gameOver) return { ok: false, error: 'Game is already over.' };
-        if (this.scoringPending) return { ok: false, error: 'Counting is pending. Resume by starting a new game.' };
+        if (this.scoringPending) return { ok: false, error: 'Counting is pending. Start a new game to resume.' };
         if (color !== this.currentPlayer) return { ok: false, error: `It is ${this.currentPlayer}'s turn.` };
-        if (!this.containsCoord(coord)) return { ok: false, error: 'Point is outside the board.' };
+        if (!this.containsCoord(coord)) return { ok: false, error: 'Point is outside the 4D board.' };
 
         const index = this.indexFromCoord(coord);
-        if (this.board[index] !== COLORS.empty) return { ok: false, error: 'That point is occupied.' };
+        if (this.board[index] !== COLORS.empty) return { ok: false, error: 'That vertex is occupied.' };
 
         const ownValue = colorToValue(color);
         const enemyValue = colorToValue(otherColor(color));
@@ -180,9 +175,7 @@ export class GoGameLogic {
         }
 
         const own = this.getGroupAndLiberties(nextBoard, index);
-        if (own.liberties.size === 0) {
-            return { ok: false, error: 'Suicide is not allowed.' };
-        }
+        if (own.liberties.size === 0) return { ok: false, error: 'Suicide is not allowed.' };
 
         const serialized = this.serializeBoard(nextBoard);
         if (this.positionSet.has(serialized)) {
@@ -195,13 +188,7 @@ export class GoGameLogic {
         this.passCount = 0;
         this.countAgreements = { black: false, white: false };
         this.moveNumber++;
-        this.moveHistory.unshift({
-            type: 'play',
-            color,
-            coord: [...coord],
-            captured,
-            number: this.moveNumber
-        });
+        this.moveHistory.unshift({ type: 'play', color, coord: [...coord], captured, number: this.moveNumber });
         this.positionHistory.push(serialized);
         this.positionSet.add(serialized);
         this.currentPlayer = otherColor(color);
@@ -211,7 +198,7 @@ export class GoGameLogic {
     setPauliAt(coord, label) {
         const index = Array.isArray(coord) ? this.indexFromCoord(coord) : Number(coord);
         if (index < 0 || index >= this.pauliLabels.length || this.board[index] === COLORS.empty) {
-            return { ok: false, error: 'Choose an occupied point.' };
+            return { ok: false, error: 'Choose an occupied vertex.' };
         }
         this.pauliLabels[index] = normalizePauliLabel(label);
         return { ok: true, pauli: this.pauliLabels[index] };
@@ -304,8 +291,7 @@ export class GoGameLogic {
             }
 
             if (borderColors.size === 1) {
-                const owner = [...borderColors][0];
-                score[owner] += region.length;
+                score[[...borderColors][0]] += region.length;
             } else {
                 score.neutral += region.length;
             }
@@ -316,73 +302,5 @@ export class GoGameLogic {
         score.neutral = Number(score.neutral.toFixed(1));
         score.margin = Number(Math.abs(score.black - score.white).toFixed(1));
         return score;
-    }
-
-    exportState() {
-        return {
-            version: 1,
-            size: this.size,
-            dimension: this.dimension,
-            topology: this.topology,
-            komi: this.komi,
-            board: Array.from(this.board),
-            pauliLabels: [...this.pauliLabels],
-            cliffordGoEnabled: this.cliffordGoEnabled,
-            currentPlayer: this.currentPlayer,
-            captures: { ...this.captures },
-            passCount: this.passCount,
-            scoringPending: this.scoringPending,
-            countAgreements: { ...this.countAgreements },
-            gameOver: this.gameOver,
-            winner: this.winner,
-            score: this.score ? { ...this.score } : null,
-            moveNumber: this.moveNumber,
-            moveHistory: this.moveHistory.map((item) => ({ ...item, coord: item.coord ? [...item.coord] : undefined })),
-            positionHistory: [...this.positionHistory]
-        };
-    }
-
-    importState(state) {
-        if (!state || typeof state !== 'object') return;
-        this.size = Number(state.size) || 9;
-        this.dimension = Number(state.dimension) || 2;
-        this.topology = normalizeTopology(state.topology);
-        this.komi = Number.isFinite(Number(state.komi)) ? Number(state.komi) : 7.5;
-        this.total = this.size ** this.dimension;
-        this.board = new Uint8Array(this.total);
-        this.pauliLabels = Array(this.total).fill('I');
-        if (Array.isArray(state.board)) {
-            for (let i = 0; i < Math.min(this.board.length, state.board.length); i++) {
-                const value = Number(state.board[i]);
-                this.board[i] = value === COLORS.white ? COLORS.white : value === COLORS.black ? COLORS.black : COLORS.empty;
-            }
-        }
-        if (Array.isArray(state.pauliLabels)) {
-            for (let i = 0; i < Math.min(this.pauliLabels.length, state.pauliLabels.length); i++) {
-                this.pauliLabels[i] = normalizePauliLabel(state.pauliLabels[i]);
-                if (this.board[i] === COLORS.empty) this.pauliLabels[i] = 'I';
-            }
-        }
-        this.cliffordGoEnabled = Boolean(state.cliffordGoEnabled);
-        this.currentPlayer = state.currentPlayer === 'white' ? 'white' : 'black';
-        this.captures = {
-            black: Number(state.captures?.black) || 0,
-            white: Number(state.captures?.white) || 0
-        };
-        this.passCount = Number(state.passCount) || 0;
-        this.scoringPending = Boolean(state.scoringPending);
-        this.countAgreements = {
-            black: Boolean(state.countAgreements?.black),
-            white: Boolean(state.countAgreements?.white)
-        };
-        this.gameOver = Boolean(state.gameOver);
-        this.winner = state.winner || '';
-        this.score = state.score ? { ...state.score } : null;
-        this.moveNumber = Number(state.moveNumber) || 0;
-        this.moveHistory = Array.isArray(state.moveHistory) ? state.moveHistory.map((item) => ({ ...item })) : [];
-        this.positionHistory = Array.isArray(state.positionHistory) && state.positionHistory.length
-            ? [...state.positionHistory]
-            : [this.serializeBoard(this.board)];
-        this.positionSet = new Set(this.positionHistory);
     }
 }

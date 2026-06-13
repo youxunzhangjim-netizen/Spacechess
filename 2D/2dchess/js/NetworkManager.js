@@ -708,7 +708,7 @@ export class NetworkManager {
         }
 
         this.game.currentPlayer = state.currentPlayer === 'black' ? 'black' : 'white';
-        this.game.boundaryCondition = ['forbidden', 'reflection', 'periodic'].includes(state.boundaryCondition)
+        this.game.boundaryCondition = ['forbidden', 'open', 'reflection', 'periodic'].includes(state.boundaryCondition)
             ? state.boundaryCondition
             : 'forbidden';
         this.game.timerEnabled = Boolean(state.timerEnabled);

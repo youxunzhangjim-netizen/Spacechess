@@ -3,6 +3,12 @@ import { RP2NetworkManager } from './RP2NetworkManager.js';
 import { applyLanguage, hasTranslation, t } from './i18n.js';
 import { createPiece, PROMOTION_TYPES } from './BoardSetup.js';
 import {
+    applyCliffordToEntity,
+    canCliffordCapture,
+    normalizeTransport,
+    transportLabelAcrossEdges
+} from '../../../js/algebra/PauliAlgebra.js';
+import {
     RP2_BOARD_HEIGHT,
     RP2_BOARD_WIDTH,
     RP2_HOME_ROWS,
@@ -48,6 +54,7 @@ export class RP2ChessGame {
         this.pendingMoveTarget = null;
         this.statusKey = 'status.start';
         this.statusParams = {};
+        this.cliffordChessEnabled = false;
 
         this.renderer = new RP2ThreeJSRenderer(this);
         this.network = new RP2NetworkManager(this);
@@ -308,6 +315,7 @@ export class RP2ChessGame {
             this.setPiece(legalMove.capturePos.x, legalMove.capturePos.y, legalMove.capturePos.sheet || 0, null);
         }
         piece.hasMoved = true;
+        this.applyMoveCliffordTransport(piece, legalMove);
 
         if (castling) {
             const rook = this.getPiece(castling.rookFrom.x, castling.rookFrom.y, castling.rookFrom.sheet || 0);
@@ -447,7 +455,9 @@ export class RP2ChessGame {
 
                 const targetPiece = this.getPiece(target.x, target.y, target.sheet);
                 if (targetPiece && targetPiece.color !== piece.color && targetPiece.type !== 'K') {
-                    moves.push({ ...target, capture: true });
+                    if (this.isCliffordCaptureLegal(piece, targetPiece)) {
+                        moves.push({ ...target, capture: true });
+                    }
                 }
             }
         }
@@ -522,7 +532,7 @@ export class RP2ChessGame {
                 }
 
                 if (target.color !== piece.color) {
-                    if (forAttack || target.type !== 'K') {
+                    if ((forAttack || target.type !== 'K') && (forAttack || this.isCliffordCaptureLegal(piece, target))) {
                         moves.push({ ...targetCoord, capture: true });
                     }
                 }
@@ -570,9 +580,38 @@ export class RP2ChessGame {
             return;
         }
 
-        if (targetPiece.color !== piece.color && (forAttack || targetPiece.type !== 'K')) {
+        if (targetPiece.color !== piece.color && (forAttack || targetPiece.type !== 'K')
+            && (forAttack || this.isCliffordCaptureLegal(piece, targetPiece))) {
             moves.push({ ...target, capture: true });
         }
+    }
+
+    isCliffordCaptureLegal(attacker, defender) {
+        return !this.cliffordChessEnabled || canCliffordCapture(attacker, defender);
+    }
+
+    applyMoveCliffordTransport(piece, move) {
+        const crossings = Array.isArray(move?.boundaryCrossings) ? move.boundaryCrossings : [];
+        const transports = crossings
+            .map((crossing) => normalizeTransport(crossing.transport))
+            .filter((transport) => transport !== 'identity');
+        if (piece && transports.length > 0) {
+            piece.pauli = transportLabelAcrossEdges(piece.pauli || 'I', transports.map((transport) => ({ transport })));
+        }
+        return piece;
+    }
+
+    applyCliffordAction(x, y, sheet = 0, generator = 'H', color = this.currentPlayer) {
+        if (!['H', 'S'].includes(generator)) return { ok: false, error: 'Unknown Clifford generator.' };
+        const coord = this.canonicalCoord(x, y, sheet);
+        const piece = this.getPiece(coord.x, coord.y, coord.sheet);
+        if (!piece || piece.color !== color) return { ok: false, error: 'Choose one of your pieces.' };
+        applyCliffordToEntity(piece, generator);
+        this.currentPlayer = this.opponentOf(this.currentPlayer);
+        this.renderer.renderPieces3D(this.board);
+        this.updateUI();
+        if (this.gameMode === 'online') this.network.persistState();
+        return { ok: true, pauli: piece.pauli };
     }
 
     getCastlingMoves(x, y, sheet = 0) {
@@ -1304,7 +1343,8 @@ export class RP2ChessGame {
             fromSheet: 0,
             toSheet: 0,
             side,
-            index: normalized
+            index: normalized,
+            transport: 'H'
         };
     }
 

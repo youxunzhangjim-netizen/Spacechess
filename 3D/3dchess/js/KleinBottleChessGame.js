@@ -109,7 +109,9 @@ export class KleinBottleChessGame extends TorusChessGame {
 
             const targetPiece = this.getPiece(target.x, target.y, target.sheet);
             if (targetPiece && targetPiece.color !== piece.color && targetPiece.type !== 'K') {
-                moves.push({ ...target, capture: true });
+                if (this.isCliffordCaptureLegal(piece, targetPiece)) {
+                    moves.push({ ...target, capture: true });
+                }
             }
         }
 
@@ -156,7 +158,8 @@ export class KleinBottleChessGame extends TorusChessGame {
                     continue;
                 }
 
-                if (target.color !== piece.color && (forAttack || target.type !== 'K')) {
+                if (target.color !== piece.color && (forAttack || target.type !== 'K')
+                    && (forAttack || this.isCliffordCaptureLegal(piece, target))) {
                     moves.push({ ...targetCoord, capture: true });
                 }
                 break;
@@ -286,7 +289,8 @@ export class KleinBottleChessGame extends TorusChessGame {
             fromSheet: 0,
             toSheet: 0,
             side,
-            index: normalized
+            index: normalized,
+            transport: side === 'top' || side === 'bottom' ? 'H' : 'identity'
         };
     }
 

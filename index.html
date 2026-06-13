@@ -17,6 +17,7 @@
     <div class="launcher-background-torus" aria-hidden="true">
         <canvas id="launcherTorusCanvas"></canvas>
     </div>
+    <div class="launcher-author" aria-label="Author">You-Xun Zhang</div>
 
     <main class="launcher-shell">
         <section class="launcher-hero" aria-labelledby="launcherTitle">
@@ -29,10 +30,12 @@
                 <section class="dimension-card dimension-2d" aria-labelledby="dimension2dTitle">
                     <span class="popularity-badge" data-popularity-key="dimension-2d">-- waiting</span>
                     <span class="dimension-visual board-plane" aria-hidden="true">
-                        <span></span><span></span><span></span><span></span>
-                        <span></span><span></span><span></span><span></span>
-                        <span></span><span></span><span></span><span></span>
-                        <span></span><span></span><span></span><span></span>
+                        <span class="board-plane-grid">
+                            <i></i><i></i><i></i><i></i>
+                            <i></i><i></i><i></i><i></i>
+                            <i></i><i></i><i></i><i></i>
+                            <i></i><i></i><i></i><i></i>
+                        </span>
                     </span>
                     <span class="dimension-copy">
                         <strong id="dimension2dTitle">2D</strong>
@@ -57,17 +60,7 @@
                 <section class="dimension-card dimension-3d" aria-labelledby="dimension3dTitle">
                     <span class="popularity-badge" data-popularity-key="dimension-3d">-- waiting</span>
                     <span class="dimension-visual chess-cube-preview" aria-hidden="true">
-                        <span class="cube-preview-board">
-                            <span class="cube-preview-layer layer-1"></span>
-                            <span class="cube-preview-layer layer-2"></span>
-                            <span class="cube-preview-layer layer-3"></span>
-                            <span class="cube-preview-piece white cp1"></span>
-                            <span class="cube-preview-piece white cp2"></span>
-                            <span class="cube-preview-piece white cp3"></span>
-                            <span class="cube-preview-piece black cp4"></span>
-                            <span class="cube-preview-piece black cp5"></span>
-                            <span class="cube-preview-piece black cp6"></span>
-                        </span>
+                        <canvas id="dimension3dCanvas"></canvas>
                     </span>
                     <span class="dimension-copy">
                         <strong id="dimension3dTitle">3D</strong>
@@ -92,7 +85,7 @@
                 <section class="dimension-card dimension-4d" aria-labelledby="dimension4dTitle">
                     <span class="popularity-badge" data-popularity-key="dimension-4d">0 waiting</span>
                     <span class="dimension-visual hyper-plane" aria-hidden="true">
-                        <span></span><span></span><span></span><span></span>
+                        <canvas id="dimension4dCanvas"></canvas>
                     </span>
                     <span class="dimension-copy">
                         <strong id="dimension4dTitle">4D</strong>
@@ -105,6 +98,13 @@
                         </span>
                         <span class="game-count-badge" data-popularity-key="game-4dchess">0 waiting</span>
                     </span>
+                    <a class="game-option" href="./4D/4dgo/">
+                        <span class="game-option-copy">
+                            <strong>4D Go</strong>
+                            <small>5^4 graph Go slices</small>
+                        </span>
+                        <span class="game-count-badge" data-popularity-key="game-4dgo">0 waiting</span>
+                    </a>
                 </section>
             </div>
         </section>
@@ -123,15 +123,20 @@
                 torus: '3dchess',
                 rp2: '3dchess',
                 mobius: '3dchess',
+                klein: '3dchess',
                 r3go: '3dgo',
-                t2go: '3dgo'
+                t2go: '3dgo',
+                s2go: '3dgo',
+                kleingo: '3dgo',
+                '4dgo': '4dgo'
             };
             const DIMENSION_BY_GAME = {
                 '2dchess': '2d',
                 '2dgo': '2d',
                 '3dchess': '3d',
                 '3dgo': '3d',
-                '4dchess': '4d'
+                '4dchess': '4d',
+                '4dgo': '4d'
             };
             const EMPTY_COUNTS = {
                 'dimension-2d': 0,
@@ -141,7 +146,8 @@
                 'game-2dgo': 0,
                 'game-3dchess': 0,
                 'game-3dgo': 0,
-                'game-4dchess': 0
+                'game-4dchess': 0,
+                'game-4dgo': 0
             };
 
             function setBadgeState(state, counts = EMPTY_COUNTS) {
@@ -214,6 +220,7 @@
             window.setInterval(refreshPopularity, 60000);
         })();
     </script>
+    <script type="module" src="./js/launcher-previews.js"></script>
     <script type="module" src="./js/launcher-torus.js"></script>
 </body>
 </html>

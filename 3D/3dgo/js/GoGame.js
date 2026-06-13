@@ -1,3 +1,19 @@
+import {
+    SPHERE_GO_TOPOLOGY,
+    sphereContainsCoord,
+    sphereLatitudeRingNeighbors
+} from './SphereGoTopology.js';
+import {
+    KLEIN_BOTTLE_TOPOLOGY,
+    kleinBottleNeighbors,
+    kleinContainsCoord
+} from './KleinBottleTopology.js';
+import {
+    algebraicPressureForIndex,
+    normalizePauliLabel,
+    setPauliLabel
+} from '../../../js/algebra/PauliAlgebra.js';
+
 export const COLORS = {
     empty: 0,
     black: 1,
@@ -23,13 +39,17 @@ export class GoGameLogic {
         this.reset(options);
     }
 
-    reset({ size = 9, dimension = 2, topology = 'open2d', komi = 7.5 } = {}) {
+    reset({ size = 9, width = size, height = size, dimension = 2, topology = 'open2d', komi = 7.5 } = {}) {
         this.size = Number(size) || 9;
+        this.width = Number(width) || this.size;
+        this.height = Number(height) || this.size;
         this.dimension = Number(dimension) || 2;
         this.topology = topology || 'open2d';
         this.komi = Number.isFinite(Number(komi)) ? Number(komi) : 7.5;
-        this.total = this.size ** this.dimension;
+        this.total = this.dimension === 3 ? this.size ** 3 : this.width * this.height;
         this.board = new Uint8Array(this.total);
+        this.pauliLabels = Array(this.total).fill('I');
+        this.cliffordGoEnabled = false;
         this.currentPlayer = 'black';
         this.captures = { black: 0, white: 0 };
         this.passCount = 0;
@@ -53,7 +73,7 @@ export class GoGameLogic {
         if (this.dimension === 3) {
             return coord[0] + this.size * (coord[1] + this.size * coord[2]);
         }
-        return coord[0] + this.size * coord[1];
+        return coord[0] + this.width * coord[1];
     }
 
     coordFromIndex(index) {
@@ -65,15 +85,23 @@ export class GoGameLogic {
             const x = rem - y * this.size;
             return [x, y, z];
         }
-        const y = Math.floor(value / this.size);
-        const x = value - y * this.size;
+        const y = Math.floor(value / this.width);
+        const x = value - y * this.width;
         return [x, y];
     }
 
     containsCoord(coord) {
+        if (this.topology === SPHERE_GO_TOPOLOGY) {
+            return sphereContainsCoord(coord, this.width, this.height);
+        }
+        if (this.topology === KLEIN_BOTTLE_TOPOLOGY) {
+            return kleinContainsCoord(coord, this.width, this.height);
+        }
         return Array.isArray(coord)
             && coord.length === this.dimension
-            && coord.every((value) => Number.isInteger(value) && value >= 0 && value < this.size);
+            && coord.every((value, axis) => Number.isInteger(value)
+                && value >= 0
+                && value < (this.dimension === 3 ? this.size : axis === 0 ? this.width : this.height));
     }
 
     isWrapAxis(axis) {
@@ -93,6 +121,12 @@ export class GoGameLogic {
     }
 
     neighborsFromCoord(coord) {
+        if (this.topology === SPHERE_GO_TOPOLOGY) {
+            return sphereLatitudeRingNeighbors(coord, this.width, this.height);
+        }
+        if (this.topology === KLEIN_BOTTLE_TOPOLOGY) {
+            return kleinBottleNeighbors(coord, this.width, this.height);
+        }
         const neighbors = [];
         for (let axis = 0; axis < this.dimension; axis++) {
             for (const delta of [-1, 1]) {
@@ -136,7 +170,7 @@ export class GoGameLogic {
         return { group, liberties };
     }
 
-    tryPlay(coord, color = this.currentPlayer) {
+    tryPlay(coord, color = this.currentPlayer, options = {}) {
         if (this.gameOver) return { ok: false, error: 'Game is already over.' };
         if (this.scoringPending) return { ok: false, error: 'Counting is pending. Resume by starting a new game.' };
         if (color !== this.currentPlayer) return { ok: false, error: `It is ${this.currentPlayer}'s turn.` };
@@ -148,7 +182,9 @@ export class GoGameLogic {
         const ownValue = colorToValue(color);
         const enemyValue = colorToValue(otherColor(color));
         const nextBoard = new Uint8Array(this.board);
+        const nextLabels = [...this.pauliLabels];
         nextBoard[index] = ownValue;
+        nextLabels[index] = normalizePauliLabel(options.pauli || options.pauliLabel || 'I');
 
         let captured = 0;
         const checkedEnemyGroups = new Set();
@@ -159,6 +195,7 @@ export class GoGameLogic {
             if (enemy.liberties.size === 0) {
                 for (const stone of enemy.group) {
                     nextBoard[stone] = COLORS.empty;
+                    nextLabels[stone] = 'I';
                     captured++;
                 }
             }
@@ -175,6 +212,7 @@ export class GoGameLogic {
         }
 
         this.board = nextBoard;
+        this.pauliLabels = nextLabels;
         this.captures[color] += captured;
         this.passCount = 0;
         this.countAgreements = { black: false, white: false };
@@ -190,6 +228,41 @@ export class GoGameLogic {
         this.positionSet.add(serialized);
         this.currentPlayer = otherColor(color);
         return { ok: true, captured };
+    }
+
+    setPauliAt(coord, label) {
+        const index = Array.isArray(coord) ? this.indexFromCoord(coord) : Number(coord);
+        if (index < 0 || index >= this.pauliLabels.length || this.board[index] === COLORS.empty) {
+            return { ok: false, error: 'Choose an occupied point.' };
+        }
+        this.pauliLabels[index] = normalizePauliLabel(label);
+        return { ok: true, pauli: this.pauliLabels[index] };
+    }
+
+    getPauliAt(coord) {
+        const index = Array.isArray(coord) ? this.indexFromCoord(coord) : Number(coord);
+        return index >= 0 && index < this.pauliLabels.length ? normalizePauliLabel(this.pauliLabels[index]) : 'I';
+    }
+
+    stoneEntityAt(index) {
+        const color = valueToColor(this.board[index]);
+        if (!color) return null;
+        return setPauliLabel({ color }, this.pauliLabels[index] || 'I');
+    }
+
+    algebraicPressureAt(coordOrIndex) {
+        const index = Array.isArray(coordOrIndex) ? this.indexFromCoord(coordOrIndex) : Number(coordOrIndex);
+        if (index < 0 || index >= this.board.length) return 0;
+        return algebraicPressureForIndex(index, {
+            board: this.board,
+            labels: this.pauliLabels,
+            neighborsFromIndex: (stoneIndex) => this.neighborsFromIndex(stoneIndex),
+            valueToColor
+        });
+    }
+
+    algebraicPressureMap() {
+        return Array.from(this.board, (_, index) => this.algebraicPressureAt(index));
     }
 
     pass(color = this.currentPlayer) {
@@ -271,10 +344,14 @@ export class GoGameLogic {
         return {
             version: 1,
             size: this.size,
+            width: this.width,
+            height: this.height,
             dimension: this.dimension,
             topology: this.topology,
             komi: this.komi,
             board: Array.from(this.board),
+            pauliLabels: [...this.pauliLabels],
+            cliffordGoEnabled: this.cliffordGoEnabled,
             currentPlayer: this.currentPlayer,
             captures: { ...this.captures },
             passCount: this.passCount,
@@ -292,17 +369,27 @@ export class GoGameLogic {
     importState(state) {
         if (!state || typeof state !== 'object') return;
         this.size = Number(state.size) || 9;
+        this.width = Number(state.width) || this.size;
+        this.height = Number(state.height) || this.size;
         this.dimension = Number(state.dimension) || 2;
         this.topology = state.topology || 'open2d';
         this.komi = Number.isFinite(Number(state.komi)) ? Number(state.komi) : 7.5;
-        this.total = this.size ** this.dimension;
+        this.total = this.dimension === 3 ? this.size ** 3 : this.width * this.height;
         this.board = new Uint8Array(this.total);
+        this.pauliLabels = Array(this.total).fill('I');
         if (Array.isArray(state.board)) {
             for (let i = 0; i < Math.min(this.board.length, state.board.length); i++) {
                 const value = Number(state.board[i]);
                 this.board[i] = value === COLORS.white ? COLORS.white : value === COLORS.black ? COLORS.black : COLORS.empty;
             }
         }
+        if (Array.isArray(state.pauliLabels)) {
+            for (let i = 0; i < Math.min(this.pauliLabels.length, state.pauliLabels.length); i++) {
+                this.pauliLabels[i] = normalizePauliLabel(state.pauliLabels[i]);
+                if (this.board[i] === COLORS.empty) this.pauliLabels[i] = 'I';
+            }
+        }
+        this.cliffordGoEnabled = Boolean(state.cliffordGoEnabled);
         this.currentPlayer = state.currentPlayer === 'white' ? 'white' : 'black';
         this.captures = {
             black: Number(state.captures?.black) || 0,

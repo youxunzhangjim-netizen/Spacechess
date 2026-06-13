@@ -341,6 +341,10 @@ export class GoNetworkManager {
             this.app.importNetworkState(data.state);
             return;
         }
+        if (data.type === 'chat') {
+            this.app.receiveChatMessage(data.message || data);
+            return;
+        }
         if (data.type === 'roomFull') {
             this.app.setStatus('Room is full.');
             this.close({ silent: true });
@@ -354,6 +358,10 @@ export class GoNetworkManager {
 
     sendState() {
         this.sendMessage({ type: 'state', state: this.app.exportNetworkState() });
+    }
+
+    sendChat(message) {
+        this.sendMessage({ type: 'chat', message });
     }
 
     sendMessage(message) {

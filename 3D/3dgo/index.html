@@ -21,7 +21,7 @@
             <header class="top-bar">
                 <div>
                     <h1 data-i18n="app.title">3D Go</h1>
-                    <p data-i18n="app.tagline">R3 lattice Go and T2 torus Go with 9, 13, and 19 scale options.</p>
+                    <p data-i18n="app.tagline">R3 lattice, T2 torus, S2 sphere, and Klein bottle Go with 9, 13, and 19 scale options.</p>
                 </div>
             </header>
 
@@ -103,6 +103,16 @@
                 <select id="goModeSelect">
                     <option value="r3" selected data-i18n="mode.r3Option">R3 Go</option>
                     <option value="t2" data-i18n="mode.t2Option">T2 Torus Go</option>
+                    <option value="sphere" data-i18n="mode.sphereOption">S2 Sphere Go</option>
+                    <option value="klein" data-i18n="mode.kleinOption">Klein Bottle Go</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="sphereViewGroup" hidden>
+                <label for="sphereViewSelect" data-i18n="controls.sphereView">Sphere View</label>
+                <select id="sphereViewSelect">
+                    <option value="3d" data-i18n="mode.sphere3d">3D Sphere</option>
+                    <option value="2d" data-i18n="mode.sphere2d">2D Cut-open Fallback</option>
                 </select>
             </div>
 
@@ -122,9 +132,9 @@
                     <option value="0" data-i18n="timer.none">No Timer</option>
                     <option value="300" data-i18n="timer.five">5 Minutes</option>
                     <option value="600" selected data-i18n="timer.ten">10 Minutes</option>
-                    <option value="900" data-i18n="timer.fifteen">15 Minutes</option>
                     <option value="1800" data-i18n="timer.thirty">30 Minutes</option>
                     <option value="3600" data-i18n="timer.hour">1 Hour</option>
+                    <option value="86400" data-i18n="timer.oneDay">1 Day</option>
                 </select>
             </div>
 
@@ -136,6 +146,17 @@
                 <button id="surrenderBtn" class="danger" type="button" data-i18n="controls.surrender">Surrender</button>
             </div>
 
+            <section class="panel chat-panel">
+                <h3 data-i18n="chat.title">Online Chat</h3>
+                <div id="chatMessages" class="chat-messages" aria-live="polite">
+                    <div class="chat-empty" data-i18n="chat.empty">Connect online to chat.</div>
+                </div>
+                <div class="chat-compose">
+                    <input id="chatInput" type="text" maxlength="240" autocomplete="off" placeholder="Message online opponent" data-i18n-placeholder="chat.placeholder">
+                    <button id="chatSendBtn" type="button" data-i18n="chat.send">Send</button>
+                </div>
+            </section>
+
             <section class="panel">
                 <h3 data-i18n="history.title">Move History</h3>
                 <div id="moveHistoryList" class="move-history"></div>
@@ -143,7 +164,7 @@
 
             <section class="panel">
                 <h3 data-i18n="rules.title">Rules</h3>
-                <div class="rules-text" data-i18n="rules.text">Area scoring with 7.5 komi. R3 groups use six face-adjacent liberties. T2 groups use four torus-adjacent liberties with both directions periodic.</div>
+                <div class="rules-text" data-i18n="rules.text">Area scoring with 7.5 komi. All captures, liberties, superko, and territory use the selected board graph.</div>
             </section>
         </aside>
     </main>

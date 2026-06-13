@@ -7,7 +7,9 @@
     "dev": "vite --host 0.0.0.0 --port 5176",
     "local": "vite --host 127.0.0.1 --port 5176 --open",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 4176"
+    "preview": "vite preview --host 0.0.0.0 --port 4176",
+    "verify:sphere": "node verification/verify-sphere.mjs",
+    "verify:klein": "node verification/verify-klein.mjs"
   },
   "dependencies": {
     "peerjs": "^1.5.5",

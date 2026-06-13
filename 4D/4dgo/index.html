@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4D Go</title>
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+    <main class="app-shell">
+        <section class="play-area">
+            <header class="top-bar">
+                <div>
+                    <h1>4D Go</h1>
+                    <p>Flat graph Go on configurable (x,y,z,w) boards. Default size: 5 x 5 x 5 x 5.</p>
+                </div>
+            </header>
+
+            <div class="game-info-bar">
+                <div class="turn-pill" id="playerTurn">Black to play</div>
+                <div class="timer-section">
+                    <div class="player-timer active" id="blackTimerBox"><span>Black</span><strong id="blackCaptured">0</strong></div>
+                    <div class="player-timer" id="whiteTimerBox"><span>White</span><strong id="whiteCaptured">0</strong></div>
+                </div>
+                <div class="boundary-display" id="topologyMode">flat_4d_go</div>
+            </div>
+
+            <div class="board-panel">
+                <div id="sliceGrid" class="slice-grid" aria-label="4D Go slice boards"></div>
+            </div>
+
+            <section class="panel score-panel" id="scorePanel" hidden>
+                <h3>Final Count</h3>
+                <div id="scoreResult"></div>
+            </section>
+        </section>
+
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Game Controls</h2>
+                <a class="space-home-link" href="../../" aria-label="Back to Topological Board Game picker">Home</a>
+            </div>
+
+            <div class="status-card">
+                <div class="status-line" id="gameStatus">Select an empty vertex for Black.</div>
+                <div class="status-line muted" id="selectionStatus">No active selection.</div>
+            </div>
+
+            <div class="dimension-controls">
+                <label>Nx <input id="nxInput" type="number" min="2" max="9" value="5"></label>
+                <label>Ny <input id="nyInput" type="number" min="2" max="9" value="5"></label>
+                <label>Nz <input id="nzInput" type="number" min="1" max="9" value="5"></label>
+                <label>Nw <input id="nwInput" type="number" min="1" max="9" value="5"></label>
+            </div>
+
+            <div class="control-group">
+                <label for="zoomLayerSelect">Zoom Layer</label>
+                <select id="zoomLayerSelect">
+                    <option value="all">All layers</option>
+                </select>
+            </div>
+
+            <div class="control-grid">
+                <button id="passBtn" type="button">Pass</button>
+                <button id="countBtn" type="button">Agree Count</button>
+                <button id="newGameBtn" type="button">New Game</button>
+                <button id="surrenderBtn" class="danger" type="button">Surrender</button>
+            </div>
+
+            <section class="panel">
+                <h3>Move History</h3>
+                <div id="moveHistoryList" class="move-history"></div>
+            </section>
+
+            <section class="panel">
+                <h3>Rules</h3>
+                <div class="rules-text">Every (x,y,z,w) coordinate is a playable vertex. Liberties are only the eight possible 4D axis-neighbors inside the board; no diagonal liberties. Captures, suicide, superko, and territory use this graph.</div>
+            </section>
+        </aside>
+    </main>
+
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>
