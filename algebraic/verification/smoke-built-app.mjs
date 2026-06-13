@@ -150,7 +150,11 @@ try {
         title: document.querySelector('#modeTitle')?.textContent,
         modeControlHidden: document.querySelector('#modeControl')?.hidden,
         virasoroVisible: !document.querySelector('#virasoroActionControl')?.hidden,
+        pauliHidden: document.querySelector('#pauliControl')?.hidden,
+        pauliDisplay: getComputedStyle(document.querySelector('#pauliControl')).display,
         braidHidden: document.querySelector('#braidMemoryControl')?.hidden,
+        braidDisplay: getComputedStyle(document.querySelector('#braidMemoryControl')).display,
+        rulesButton: document.querySelector('#rulesIntroButton')?.textContent,
         rulesText: [...document.querySelectorAll('#rulesIntroPanel [data-rules-mode]:not([hidden])')]
             .map((node) => node.textContent || '')
             .join(' ')
@@ -158,8 +162,21 @@ try {
     assert.equal(fixedGoState.title, 'Virasoro Go');
     assert.equal(fixedGoState.modeControlHidden, true, 'Fixed Virasoro Go mode should hide the mixed mode selector.');
     assert.equal(fixedGoState.virasoroVisible, true, 'Virasoro Go should show Virasoro controls.');
+    assert.equal(fixedGoState.pauliHidden, true, 'Virasoro Go should hide Clifford Pauli controls.');
+    assert.equal(fixedGoState.pauliDisplay, 'none', 'Hidden Clifford controls should not occupy layout space.');
     assert.equal(fixedGoState.braidHidden, true, 'Virasoro Go should hide Anyon braid controls.');
+    assert.equal(fixedGoState.braidDisplay, 'none', 'Hidden Anyon controls should not occupy layout space.');
+    assert.equal(fixedGoState.rulesButton, 'Virasoro Rules');
     assert.match(fixedGoState.rulesText, /Virasoro Go Rules/);
+    await page.locator('#rulesIntroButton').click();
+    const visibleVirasoroRules = await page.evaluate(() => ({
+        visible: !document.querySelector('#rulesIntroPanel')?.hidden,
+        text: [...document.querySelectorAll('#rulesIntroPanel [data-rules-mode]:not([hidden])')]
+            .map((node) => node.textContent || '')
+            .join(' ')
+    }));
+    assert.equal(visibleVirasoroRules.visible, true, 'Virasoro rules should open in the board area.');
+    assert.match(visibleVirasoroRules.text, /Stress pressure/);
     await page.locator('.cell.legal').first().click();
     await page.locator('.cell.legal').first().click();
     await page.selectOption('#virasoroActionSelect', 'L0');
@@ -176,7 +193,7 @@ try {
     assert.equal(goState.historyType, 'virasoro');
     assert.ok(goState.stressCount > 0, 'Expected L0 to create stress on Go liberties.');
     assert.equal(logs.some((line) => line.startsWith('pageerror')), false, logs.join('\n'));
-    console.log(JSON.stringify({ state, rulesVisible: rulesState.visible, reversiState, anyonState, fixedAnyonState, physicalProblemState, isingProblemState, fixedGoState, goState, logs }, null, 2));
+    console.log(JSON.stringify({ state, rulesVisible: rulesState.visible, reversiState, anyonState, fixedAnyonState, physicalProblemState, isingProblemState, fixedGoState, visibleVirasoroRules, goState, logs }, null, 2));
 } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

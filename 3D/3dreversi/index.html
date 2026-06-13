@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Reversi</title>
     <link rel="stylesheet" href="./css/styles.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+            }
+        }
+    </script>
 </head>
 <body>
     <main class="app-shell">
@@ -25,7 +33,7 @@
                 <div class="boundary-display" id="modeDisplay">R3</div>
             </div>
 
-            <div class="board-panel">
+            <div class="board-frame">
                 <canvas id="reversiBoard" aria-label="3D Reversi board"></canvas>
             </div>
         </section>

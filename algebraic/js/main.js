@@ -216,6 +216,11 @@ function syncModeControls() {
     if (els.cliffordRules) els.cliffordRules.hidden = !isClifford;
     if (els.anyonRules) els.anyonRules.hidden = !isAnyon;
     if (els.virasoroRules) els.virasoroRules.hidden = !isVirasoroGo;
+    if (els.rulesIntroButton) {
+        els.rulesIntroButton.textContent = isVirasoroGo
+            ? 'Virasoro Rules'
+            : isAnyon ? 'Anyon Rules' : 'Clifford Rules';
+    }
     document.title = `${MODE_LABELS[mode]} - Algebraic Board Games`;
     return mode;
 }
@@ -914,9 +919,15 @@ function applyTimeNow() {
 }
 
 function toggleRulesIntro() {
-    const hidden = !els.rulesIntroPanel.hidden;
-    els.rulesIntroPanel.hidden = hidden;
-    els.rulesIntroButton.setAttribute('aria-expanded', String(!hidden));
+    syncModeControls();
+    const shouldOpen = els.rulesIntroPanel.hidden;
+    els.rulesIntroPanel.hidden = !shouldOpen;
+    els.rulesIntroButton.setAttribute('aria-expanded', String(shouldOpen));
+    if (shouldOpen) {
+        window.requestAnimationFrame(() => {
+            els.rulesIntroPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        });
+    }
 }
 
 function renderStats() {
