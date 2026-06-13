@@ -112,6 +112,7 @@ const ANYON_SYMBOLS = {
 };
 const params = new URLSearchParams(window.location.search);
 const FIXED_MODE = normalizeMode(params.get('mode') || params.get('game') || params.get('algebraicMode'));
+const PHYSICAL_PROBLEM_ID = params.get('physicalProblem') || params.get('problemId') || '';
 
 let game = null;
 let selectedToken = '';
@@ -317,21 +318,42 @@ function anyonConfig() {
     };
 }
 
+function physicalProblemConfig(mode) {
+    if (mode !== 'anyon_jump' || PHYSICAL_PROBLEM_ID !== 'toric_code_memory_unbraid') return null;
+    const topology = topologyConfig();
+    return {
+        id: PHYSICAL_PROBLEM_ID,
+        topology: params.get('problemTopology') || topology.topology,
+        boardSize: Number(params.get('boardSize') || params.get('size') || topology.width),
+        numPairsE: Number(params.get('numPairsE') || 2),
+        numPairsM: Number(params.get('numPairsM') || 2),
+        createPairsLocally: params.get('createPairsLocally') !== 'false',
+        enableTwistSeam: params.get('enableTwistSeam') !== 'false'
+    };
+}
+
 function createGame() {
     const mode = syncModeControls();
     selectedToken = '';
     hoverCoord = null;
     lastCancellation = null;
     lastWrongUnbraid = null;
+    const config = anyonConfig();
+    const physicalProblem = physicalProblemConfig(mode);
+    if (physicalProblem) {
+        config.anyonModel = 'toric_code';
+        config.braidEffect = 'add_braid_token';
+    }
     const options = {
         topology: topologyConfig(),
         defaultFlipTransform: els.transformSelect.value,
         trackPhaseSigns: phaseSignsEnabled(),
-        config: anyonConfig(),
+        config,
         virasoro: virasoroConfig(),
         probability: probabilityConfig(),
         time: timeConfig()
     };
+    if (physicalProblem) options.physicalProblem = physicalProblem;
     if (mode === 'anyon_jump') game = new AnyonJumpGame(options);
     else if (mode === 'virasoro_go') game = new VirasoroGoGame(options);
     else game = new CliffordReversiGame(options);

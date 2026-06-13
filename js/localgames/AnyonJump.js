@@ -30,6 +30,10 @@ import {
 } from '../topology/GraphTopologies.js';
 import { ProbabilityEngine } from '../probability/ProbabilityEngine.js';
 import { FloquetEngine } from '../time/FloquetEngine.js';
+import {
+    createPhysicalProblem,
+    topologyOptionsForPhysicalProblem
+} from '../physics/PhysicalProblems.js';
 
 export const ANYON_JUMP_MODE = 'anyon_jump';
 
@@ -74,7 +78,11 @@ export class AnyonJumpGame {
 
     reset(options = {}) {
         this.mode = ANYON_JUMP_MODE;
-        this.topology = createGraphTopology(options.topology || options);
+        const physicalProblemSource = options.physicalProblem || options.physicalProblemId || options.problemId || null;
+        const physicalProblemConfig = options.physicalProblemConfig || {};
+        const problemTopology = topologyOptionsForPhysicalProblem(physicalProblemSource, physicalProblemConfig);
+        this.physicalProblem = createPhysicalProblem(physicalProblemSource, physicalProblemConfig);
+        this.topology = createGraphTopology(problemTopology || options.topology || options);
         this.config = normalizeAnyonConfig({
             anyonModel: 'toric_code',
             braidEffect: 'add_braid_token',
@@ -101,8 +109,10 @@ export class AnyonJumpGame {
             config: options.time || options.floquet || {},
             game: this
         });
-        this.setupInitialPosition();
+        if (this.physicalProblem?.setupInitialState) this.physicalProblem.setupInitialState(this);
+        else this.setupInitialPosition();
         this.initialState = this.snapshotState('initial');
+        this.physicalProblem?.start?.(this);
     }
 
     setupInitialPosition() {
@@ -444,6 +454,7 @@ export class AnyonJumpGame {
             wrongOrder: unbraid.wrongOrder
         });
         this.unbraidAttempts.push(unbraidLog);
+        this.physicalProblem?.record?.(this, { type: 'attempt_unbraid', event });
         return { ok: true, event };
     }
 
@@ -515,6 +526,7 @@ export class AnyonJumpGame {
         if (!options.keepTurn) this.currentPlayer = otherOwner(token.owner);
         event.noise = this.maybeApplyNoise('after_move', token.owner);
         event.time = this.maybeApplyTime('after_move', token.owner);
+        this.physicalProblem?.record?.(this, { type: action.kind, event });
         return { ok: true, event };
     }
 
@@ -670,6 +682,7 @@ export class AnyonJumpGame {
                 player,
                 noiseEvents: events.length
             });
+            this.physicalProblem?.record?.(this, { type: 'noise', event: { player, trigger, events } });
         }
         return events;
     }
@@ -702,6 +715,7 @@ export class AnyonJumpGame {
             player,
             measurement
         });
+        this.physicalProblem?.record?.(this, { type: 'measurement', event: { player, measurement } });
         return { ok: true, measurement };
     }
 
@@ -779,7 +793,8 @@ export class AnyonJumpGame {
             statistics: this.braidStatistics(),
             history: this.history,
             probability: this.probability.exportState({ fusionOutcomes: this.fusionOutcomes }),
-            time: this.time.exportState()
+            time: this.time.exportState(),
+            physicalProblem: this.physicalProblem?.export?.(this) || null
         };
     }
 }

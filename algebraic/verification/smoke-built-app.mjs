@@ -109,6 +109,23 @@ try {
     assert.equal(selectedOnce, 1, 'Clicking a friendly anyon selects it.');
     assert.equal(selectedTwice, 0, 'Clicking the selected anyon again clears selection.');
 
+    await page.goto(`http://127.0.0.1:${port}/?mode=anyon_jump&physicalProblem=toric_code_memory_unbraid&boardSize=6&numPairsE=1&numPairsM=1`, { waitUntil: 'networkidle' });
+    const physicalProblemState = await page.evaluate(() => {
+        const exportState = JSON.parse(document.querySelector('#exportText').value);
+        return {
+            problemId: exportState.physicalProblem?.problemId,
+            totalCharge: exportState.physicalProblem?.initialObservables?.totalFusionCharge,
+            numE: exportState.physicalProblem?.initialObservables?.numE,
+            numM: exportState.physicalProblem?.initialObservables?.numM,
+            answerLabel: exportState.physicalProblem?.answer?.finalAnswerLabel
+        };
+    });
+    assert.equal(physicalProblemState.problemId, 'toric_code_memory_unbraid');
+    assert.equal(physicalProblemState.totalCharge, '1');
+    assert.equal(physicalProblemState.numE, 2);
+    assert.equal(physicalProblemState.numM, 2);
+    assert.ok(physicalProblemState.answerLabel, 'Physical problem export should include an answer label.');
+
     await page.goto(`http://127.0.0.1:${port}/?mode=virasoro_go`, { waitUntil: 'networkidle' });
     const fixedGoState = await page.evaluate(() => ({
         title: document.querySelector('#modeTitle')?.textContent,
@@ -140,7 +157,7 @@ try {
     assert.equal(goState.historyType, 'virasoro');
     assert.ok(goState.stressCount > 0, 'Expected L0 to create stress on Go liberties.');
     assert.equal(logs.some((line) => line.startsWith('pageerror')), false, logs.join('\n'));
-    console.log(JSON.stringify({ state, rulesVisible: rulesState.visible, reversiState, anyonState, fixedAnyonState, fixedGoState, goState, logs }, null, 2));
+    console.log(JSON.stringify({ state, rulesVisible: rulesState.visible, reversiState, anyonState, fixedAnyonState, physicalProblemState, fixedGoState, goState, logs }, null, 2));
 } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));
