@@ -12,6 +12,8 @@ export const REVERSI_TOPOLOGIES = {
     KLEIN: 'klein',
     RANDOM: 'random',
     R3: 'r3',
+    T3: 't3',
+    R3_RANDOM: 'r3_random',
     T2: 't2',
     SPHERE: 'sphere'
 };
@@ -68,8 +70,29 @@ function boundaryTargets(width, height) {
     return targets;
 }
 
+function boundaryTargets3D(width, height, depth) {
+    const targets = [];
+    for (let z = 0; z < depth; z += 1) {
+        for (let y = 0; y < height; y += 1) {
+            for (let x = 0; x < width; x += 1) {
+                if (
+                    x === 0 || y === 0 || z === 0 ||
+                    x === width - 1 || y === height - 1 || z === depth - 1
+                ) {
+                    targets.push([x, y, z]);
+                }
+            }
+        }
+    }
+    return targets;
+}
+
 function randomExitKey(coord, direction) {
     return `${coord[0]},${coord[1]}:${Math.sign(direction[0] || 0)},${Math.sign(direction[1] || 0)}`;
+}
+
+function randomExitKey3D(coord, direction) {
+    return `${coord[0]},${coord[1]},${coord[2] || 0}:${Math.sign(direction[0] || 0)},${Math.sign(direction[1] || 0)},${Math.sign(direction[2] || 0)}`;
 }
 
 function createRandomBoundaryMap(width, height, directions, seed = randomSeed()) {
@@ -92,6 +115,39 @@ function createRandomBoundaryMap(width, height, directions, seed = randomSeed())
     return entries;
 }
 
+function createRandomBoundaryMap3D(width, height, depth, directions, seed = randomSeed()) {
+    const rng = new SeededRandom(seed);
+    const targets = boundaryTargets3D(width, height, depth);
+    const entries = [];
+    for (let z = 0; z < depth; z += 1) {
+        for (let y = 0; y < height; y += 1) {
+            for (let x = 0; x < width; x += 1) {
+                for (const direction of directions) {
+                    const raw = [
+                        x + (direction[0] || 0),
+                        y + (direction[1] || 0),
+                        z + (direction[2] || 0)
+                    ];
+                    if (
+                        raw[0] >= 0 && raw[0] < width &&
+                        raw[1] >= 0 && raw[1] < height &&
+                        raw[2] >= 0 && raw[2] < depth
+                    ) {
+                        continue;
+                    }
+                    let target = targets[rng.integer(targets.length)] || [x, y, z];
+                    if (targets.length > 1 && target[0] === x && target[1] === y && target[2] === z) {
+                        const currentIndex = targets.findIndex(([tx, ty, tz]) => tx === target[0] && ty === target[1] && tz === target[2]);
+                        target = targets[(currentIndex + 1) % targets.length];
+                    }
+                    entries.push([randomExitKey3D([x, y, z], direction), target]);
+                }
+            }
+        }
+    }
+    return entries;
+}
+
 function createDirections(dimension) {
     const directions = [];
     const build = (prefix, depth) => {
@@ -105,6 +161,12 @@ function createDirections(dimension) {
     return directions;
 }
 
+function is3DReversiTopology(topology) {
+    return topology === REVERSI_TOPOLOGIES.R3 ||
+        topology === REVERSI_TOPOLOGIES.T3 ||
+        topology === REVERSI_TOPOLOGIES.R3_RANDOM;
+}
+
 export function createReversiTopology(options = {}) {
     const topology = normalizeReversiTopology(options.topology);
     const size = normalizeReversiSize(options.size, {
@@ -112,16 +174,21 @@ export function createReversiTopology(options = {}) {
         min: options.minSize || 4,
         max: options.maxSize || 30
     });
-    const dimension = topology === REVERSI_TOPOLOGIES.R3 ? 3 : 2;
+    const dimension = is3DReversiTopology(topology) ? 3 : 2;
     const width = normalizeReversiSize(options.width ?? size, { fallback: size, min: 4, max: options.maxSize || 30 });
     const height = normalizeReversiSize(options.height ?? size, { fallback: size, min: 4, max: options.maxSize || 30 });
     const depth = dimension === 3
         ? normalizeReversiSize(options.depth ?? size, { fallback: size, min: 4, max: options.maxSize || 30 })
         : 1;
     const directions = createDirections(dimension);
-    const randomBoundarySeed = topology === REVERSI_TOPOLOGIES.RANDOM ? (options.randomBoundarySeed || randomSeed()) : '';
-    const randomBoundaryMap = topology === REVERSI_TOPOLOGIES.RANDOM
-        ? new Map(Array.isArray(options.randomBoundaryMap) ? options.randomBoundaryMap : createRandomBoundaryMap(width, height, directions, randomBoundarySeed))
+    const hasRandomBoundary = topology === REVERSI_TOPOLOGIES.RANDOM || topology === REVERSI_TOPOLOGIES.R3_RANDOM;
+    const randomBoundarySeed = hasRandomBoundary ? (options.randomBoundarySeed || randomSeed()) : '';
+    const randomBoundaryMap = hasRandomBoundary
+        ? new Map(Array.isArray(options.randomBoundaryMap)
+            ? options.randomBoundaryMap
+            : (topology === REVERSI_TOPOLOGIES.R3_RANDOM
+                ? createRandomBoundaryMap3D(width, height, depth, directions, randomBoundarySeed)
+                : createRandomBoundaryMap(width, height, directions, randomBoundarySeed)))
         : new Map();
 
     return {
@@ -148,6 +215,9 @@ export function createReversiTopology(options = {}) {
             if (topology === REVERSI_TOPOLOGIES.PBC || topology === REVERSI_TOPOLOGIES.T2) {
                 return [mod(x, width), mod(y, height)];
             }
+            if (topology === REVERSI_TOPOLOGIES.T3) {
+                return [mod(x, width), mod(y, height), mod(z, depth)];
+            }
             if (topology === REVERSI_TOPOLOGIES.KLEIN) {
                 return normalizeKlein(x, y, width, height);
             }
@@ -159,7 +229,7 @@ export function createReversiTopology(options = {}) {
                 if (y < 0 || y >= height) return null;
                 return [mod(x, width), y];
             }
-            if (topology === REVERSI_TOPOLOGIES.R3) {
+            if (topology === REVERSI_TOPOLOGIES.R3 || topology === REVERSI_TOPOLOGIES.R3_RANDOM) {
                 if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= depth) return null;
                 return [x, y, z];
             }
@@ -173,10 +243,21 @@ export function createReversiTopology(options = {}) {
                 const target = randomBoundaryMap.get(randomExitKey(coord, direction));
                 return target ? [...target] : null;
             }
+            if (topology === REVERSI_TOPOLOGIES.R3_RANDOM && dimension === 3) {
+                if (
+                    next[0] >= 0 && next[0] < width &&
+                    next[1] >= 0 && next[1] < height &&
+                    next[2] >= 0 && next[2] < depth
+                ) {
+                    return next;
+                }
+                const target = randomBoundaryMap.get(randomExitKey3D(coord, direction));
+                return target ? [...target] : null;
+            }
             return this.normalize(next);
         },
         randomBoundaryLinks(limit = 28) {
-            if (topology !== REVERSI_TOPOLOGIES.RANDOM) return [];
+            if (topology !== REVERSI_TOPOLOGIES.RANDOM && topology !== REVERSI_TOPOLOGIES.R3_RANDOM) return [];
             return [...randomBoundaryMap.entries()].slice(0, limit).map(([key, target]) => {
                 const [coordText] = key.split(':');
                 return {
@@ -209,6 +290,8 @@ export function normalizeReversiTopology(value) {
     if (['klein', 'klein_bottle', 'klein-bottle'].includes(text)) return REVERSI_TOPOLOGIES.KLEIN;
     if (['random', 'random_boundary', 'random-boundary', 'randomboundary'].includes(text)) return REVERSI_TOPOLOGIES.RANDOM;
     if (['r3', '3d', 'cube'].includes(text)) return REVERSI_TOPOLOGIES.R3;
+    if (['t3', 't3_pbc', 't3-pbc', 'pbc3d', '3d_pbc', '3dpbc'].includes(text)) return REVERSI_TOPOLOGIES.T3;
+    if (['r3_random', 'r3-random', 'r3rbc', 'rbc3d', '3d_rbc', '3drbc', 'random3d'].includes(text)) return REVERSI_TOPOLOGIES.R3_RANDOM;
     if (['t2', 'torus', 'torus2d'].includes(text)) return REVERSI_TOPOLOGIES.T2;
     if (['s2', 'sphere', 'sphere_latitude_ring'].includes(text)) return REVERSI_TOPOLOGIES.SPHERE;
     return REVERSI_TOPOLOGIES.OPEN_2D;

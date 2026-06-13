@@ -456,6 +456,19 @@ Object.assign(DICTIONARY.zh.boundary.info, {
     periodic: 'T3 週期：從任一立方體面離開會從相對面進入。'
 });
 
+Object.assign(DICTIONARY.zh.boundary.names, {
+    forbidden: 'Standard',
+    random: '3D RBC',
+    reflective: 'Reflection',
+    periodic: 'T3 PBC'
+});
+Object.assign(DICTIONARY.zh.boundary.info, {
+    forbidden: 'Standard：棋子不能離開普通 8x8x8 立方體邊界。',
+    random: '3D RBC：每個立方體邊界出口方向會固定映射到一個隨機邊界格。',
+    reflective: 'Reflection：棋子碰到邊界時會鏡射回棋盤內。',
+    periodic: 'T3 PBC：離開任一立方體面時，會從 x、y、z 的相對面包回。'
+});
+
 function normalizeLanguage(value) {
     return value === 'zh' || value === 'zh-Hant' || value === 'zh_tw' ? 'zh' : value === 'en' ? 'en' : '';
 }

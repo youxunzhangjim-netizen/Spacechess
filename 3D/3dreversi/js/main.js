@@ -1,8 +1,17 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ReversiGame, normalizeReversiSize, normalizeReversiTopology } from '../../../js/reversi/ReversiGame.js';
+import { ReversiGame, REVERSI_TOPOLOGIES, normalizeReversiSize, normalizeReversiTopology } from '../../../js/reversi/ReversiGame.js';
 
 const TWO_PI = Math.PI * 2;
+const R3_LIKE_TOPOLOGIES = new Set([
+    REVERSI_TOPOLOGIES.R3,
+    REVERSI_TOPOLOGIES.T3,
+    REVERSI_TOPOLOGIES.R3_RANDOM
+]);
+
+function isR3LikeTopology(topology) {
+    return R3_LIKE_TOPOLOGIES.has(topology);
+}
 
 class Reversi3DRenderer {
     constructor(app) {
@@ -105,7 +114,7 @@ class Reversi3DRenderer {
         this.pointPositions = [];
         this.nodePoints = null;
 
-        if (topology.topology === 'r3') this.buildR3(topology.width, topology.height, topology.depth);
+        if (isR3LikeTopology(topology.topology)) this.buildR3(topology.width, topology.height, topology.depth);
         else if (topology.topology === 't2') this.buildTorus(topology.width, topology.height);
         else this.buildSphere(topology.width, topology.height);
 
@@ -339,7 +348,7 @@ class Reversi3DRenderer {
 
     markerRadius(logic) {
         const size = Math.max(logic.topology.width, logic.topology.height, logic.topology.depth);
-        if (logic.topology.topology === 'r3') return size <= 9 ? 0.18 : size <= 13 ? 0.13 : 0.095;
+        if (isR3LikeTopology(logic.topology.topology)) return size <= 9 ? 0.18 : size <= 13 ? 0.13 : 0.095;
         return size <= 9 ? 0.17 : size <= 13 ? 0.135 : 0.105;
     }
 
@@ -490,7 +499,7 @@ class Reversi3DApp {
     applyUrlSettings() {
         const params = new URLSearchParams(window.location.search);
         const mode = normalizeReversiTopology(params.get('mode') || 'r3');
-        this.modeSelect.value = ['r3', 't2', 'sphere'].includes(mode) ? mode : 'r3';
+        this.modeSelect.value = ['r3', 't3', 'r3_random', 't2', 'sphere'].includes(mode) ? mode : 'r3';
         const size = params.get('size');
         if (size !== null && size.trim() !== '' && Number.isFinite(Number(size))) this.setSizeSelection(size);
     }
@@ -584,12 +593,22 @@ class Reversi3DApp {
         this.summaryEl.textContent = `${counts.black + counts.white} stones on board, ${counts.empty} empty`;
         this.passBtn.disabled = this.logic.gameOver || this.logic.legalMoves(this.logic.currentPlayer).length > 0;
         const mode = this.modeSelect.value;
-        this.modeDisplay.textContent = mode === 'sphere' ? 'S2' : mode === 't2' ? 'T2' : 'R3';
-        this.modeInfo.textContent = mode === 'sphere'
-            ? 'S2 is rendered as a rotatable latitude-ring sphere. Horizontal rays wrap by longitude and vertical rays stop at the caps.'
-            : mode === 't2'
-                ? 'T2 is rendered as a solid rotatable torus. Both board directions wrap on the surface.'
-                : 'R3 is rendered as the full cubic lattice. Reversi brackets can run through all 26 graph ray directions.';
+        const modeText = {
+            r3: 'R3 Standard',
+            t3: 'T3 PBC',
+            r3_random: '3D RBC',
+            t2: 'T2',
+            sphere: 'S2'
+        };
+        const modeInfo = {
+            r3: 'R3 Standard uses ordinary open cubic boundaries. Reversi brackets can run through all 26 graph ray directions.',
+            t3: 'T3 PBC wraps x, y, and z, so every cubic axis is periodic.',
+            r3_random: '3D RBC uses one fixed seeded random map from each cube-boundary exit to another boundary point.',
+            t2: 'T2 is rendered as a solid rotatable torus. Both board directions wrap on the surface.',
+            sphere: 'S2 is rendered as a rotatable latitude-ring sphere. Horizontal rays wrap by longitude and vertical rays stop at the caps.'
+        };
+        this.modeDisplay.textContent = modeText[mode] || modeText.r3;
+        this.modeInfo.textContent = modeInfo[mode] || modeInfo.r3;
         if (this.logic.gameOver) this.setStatus(this.resultText());
         this.renderHistory();
         this.renderer.renderGame(this.logic);

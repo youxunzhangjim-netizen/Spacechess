@@ -12,6 +12,22 @@ assert.equal(customOdd.topology.depth, 9);
 assert.equal(customOdd.counts().black, 4);
 assert.ok(customOdd.legalMoves('black').length > 0);
 
+const t3 = new ReversiGame({ topology: 't3', size: 8 });
+assert.equal(t3.topology.dimension, 3);
+assert.deepEqual(t3.topology.step([0, 3, 3], [-1, 0, 0]), [7, 3, 3]);
+assert.deepEqual(t3.topology.step([3, 0, 3], [0, -1, 0]), [3, 7, 3]);
+assert.deepEqual(t3.topology.step([3, 3, 0], [0, 0, -1]), [3, 3, 7]);
+assert.ok(t3.legalMoves('black').length > 0);
+
+const r3RandomA = new ReversiGame({ topology: 'r3_random', size: 8, randomBoundarySeed: 'verify-r3-rbc' });
+const r3RandomB = new ReversiGame({ topology: '3d_rbc', size: 8, randomBoundarySeed: 'verify-r3-rbc' });
+assert.equal(r3RandomA.topology.dimension, 3);
+const randomExitA = r3RandomA.topology.step([0, 3, 3], [-1, 0, 0]);
+const randomExitB = r3RandomB.topology.step([0, 3, 3], [-1, 0, 0]);
+assert.ok(Array.isArray(randomExitA) && randomExitA.length === 3);
+assert.deepEqual(randomExitA, randomExitB);
+assert.ok(r3RandomA.legalMoves('black').length > 0);
+
 const t2 = new ReversiGame({ topology: 't2', size: 8 });
 assert.deepEqual(t2.topology.step([0, 0], [-1, 0]), [7, 0]);
 assert.deepEqual(t2.topology.step([0, 0], [0, -1]), [0, 7]);

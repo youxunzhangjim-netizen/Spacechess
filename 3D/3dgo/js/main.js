@@ -107,6 +107,31 @@ Object.assign(I18N.zh.mode, {
     r3RandomInfo: '3D RBC 會用固定種子的隨機映射，把每個立方體邊界出口連到另一個邊界點。'
 });
 
+Object.assign(I18N.zh.app, {
+    title: '3D 圍棋',
+    tagline: 'R3 Standard、T3 PBC、3D RBC、T2 torus、S2 sphere 與 Klein bottle 圍棋，支援 9、13、19 尺度。'
+});
+Object.assign(I18N.zh.mode, {
+    r3Option: 'R3 Standard 圍棋',
+    t3Option: 'T3 PBC 圍棋',
+    r3RandomOption: '3D RBC 圍棋',
+    t2Option: 'T2 torus 圍棋',
+    sphereOption: 'S2 sphere 圍棋',
+    kleinOption: 'Klein bottle 圍棋',
+    r3Display: ({ size }) => size + '^3 R3 Standard 圍棋',
+    t3Display: ({ size }) => size + '^3 T3 PBC 圍棋',
+    r3RandomDisplay: ({ size }) => size + '^3 3D RBC 圍棋',
+    t2Display: ({ size }) => size + ' x ' + size + ' T2 torus 圍棋',
+    sphereDisplay: ({ width, height }) => width + ' x ' + height + ' S2 sphere 圍棋',
+    kleinDisplay: ({ width, height }) => width + ' x ' + height + ' Klein bottle 圍棋',
+    r3Info: 'R3 Standard 使用 x、y、z 的普通開放邊界。',
+    t3Info: 'T3 PBC 會在 x、y、z 三個方向週期包回。',
+    r3RandomInfo: '3D RBC 會用固定種子的隨機映射，把每個立方體邊界出口連到另一個邊界點。',
+    t2Info: 'T2 torus 會在環面上的兩個方向週期包回。',
+    sphereInfo: 'S2 sphere 使用經度環；水平方向包回，第一與最後一圈緯度環度數為 3，沒有可落子的極點節點。',
+    kleinInfo: 'Klein bottle 左右正常包回，上下包回時 x 會翻轉為 width - 1 - x。'
+});
+
 function normalizeLanguage(value) {
     const language = String(value || '');
     return language === 'zh' || language === 'zh-Hant' || language === 'zh_tw' ? 'zh' : language === 'en' ? 'en' : '';
