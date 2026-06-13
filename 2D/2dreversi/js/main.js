@@ -209,21 +209,17 @@ class Reversi2DApp {
         } else if (this.boundarySelect.value === 'random') {
             ctx.strokeRect(rect.left - 5, rect.top - 5, right - rect.left + 10, bottom - rect.top + 10);
             ctx.setLineDash([]);
-            ctx.globalAlpha = 0.62;
-            ctx.lineWidth = Math.max(1, rect.step * 0.018);
-            for (const link of this.logic.topology.randomBoundaryLinks(30)) {
-                const from = {
-                    x: rect.left + (link.from[0] + 0.5) * rect.step,
-                    y: rect.top + (link.from[1] + 0.5) * rect.step
-                };
-                const to = {
-                    x: rect.left + (link.to[0] + 0.5) * rect.step,
-                    y: rect.top + (link.to[1] + 0.5) * rect.step
-                };
+            ctx.fillStyle = 'rgba(216, 180, 254, 0.92)';
+            const marker = Math.max(2.5, rect.step * 0.075);
+            for (const [x, y] of [
+                [rect.left - 5, rect.top - 5],
+                [right + 5, rect.top - 5],
+                [right + 5, bottom + 5],
+                [rect.left - 5, bottom + 5]
+            ]) {
                 ctx.beginPath();
-                ctx.moveTo(from.x, from.y);
-                ctx.lineTo(to.x, to.y);
-                ctx.stroke();
+                ctx.arc(x, y, marker, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
         ctx.restore();

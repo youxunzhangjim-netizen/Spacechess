@@ -458,16 +458,17 @@ class Go2DApp {
         ctx.strokeRect(left, top, right - left, bottom - top);
         ctx.setLineDash([]);
 
-        ctx.globalAlpha = 0.68;
-        ctx.lineWidth = Math.max(1, rect.step * 0.018);
-        ctx.strokeStyle = 'rgba(192, 132, 252, 0.82)';
-        for (const link of this.logic.randomBoundaryLinks(30)) {
-            const from = this.coordToPixel(link.from);
-            const to = this.coordToPixel(link.to);
+        ctx.fillStyle = 'rgba(216, 180, 254, 0.92)';
+        const marker = Math.max(2.5, rect.step * 0.075);
+        for (const [x, y] of [
+            [left, top],
+            [right, top],
+            [right, bottom],
+            [left, bottom]
+        ]) {
             ctx.beginPath();
-            ctx.moveTo(from.x, from.y);
-            ctx.lineTo(to.x, to.y);
-            ctx.stroke();
+            ctx.arc(x, y, marker, 0, Math.PI * 2);
+            ctx.fill();
         }
         ctx.restore();
     }
