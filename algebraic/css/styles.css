@@ -209,6 +209,12 @@ h2 {
     background: var(--panel);
 }
 
+.board-wrap .rules-intro-panel {
+    margin-top: 12px;
+    max-height: min(34vh, 360px);
+    overflow: auto;
+}
+
 .rules-intro-panel[hidden] {
     display: none;
 }

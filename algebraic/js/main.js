@@ -749,6 +749,13 @@ function handleCellClick(coord) {
     }
 
     const token = game.tokenAt(coord);
+    if (token && selectedToken && token.id === selectedToken) {
+        selectedToken = '';
+        hoverCoord = null;
+        els.statusText.textContent = 'Selection cleared.';
+        render();
+        return;
+    }
     if (token && selectedToken && token.id !== selectedToken) {
         const selected = game.tokens.get(selectedToken);
         const path = selected ? [selected.coord, coord] : [];

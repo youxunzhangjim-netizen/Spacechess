@@ -54,11 +54,13 @@ try {
     await page.locator('#rulesIntroButton').click();
     const rulesState = await page.evaluate(() => ({
         visible: !document.querySelector('#rulesIntroPanel')?.hidden,
+        parentClass: document.querySelector('#rulesIntroPanel')?.parentElement?.className || '',
         text: [...document.querySelectorAll('#rulesIntroPanel [data-rules-mode]:not([hidden])')]
             .map((node) => node.textContent || '')
             .join(' ')
     }));
     assert.equal(rulesState.visible, true, 'Expected rules intro panel to open.');
+    assert.match(rulesState.parentClass, /board-wrap/, 'Rules intro panel should live inside the board/game area.');
     assert.match(rulesState.text, /Clifford Reversi/);
     assert.doesNotMatch(rulesState.text, /Toric code fusion/);
 
@@ -97,6 +99,15 @@ try {
     assert.equal(fixedAnyonState.pauliHidden, true, 'Anyon Jump should hide Pauli Reversi controls.');
     assert.equal(fixedAnyonState.braidVisible, true, 'Anyon Jump should show braid controls.');
     assert.match(fixedAnyonState.rulesText, /Toric code fusion/);
+    assert.match(fixedAnyonState.rulesText, /Vacuum 1/);
+
+    const firstBlackAnyonCell = page.locator('.anyon.black').first().locator('xpath=..');
+    await firstBlackAnyonCell.click();
+    const selectedOnce = await page.evaluate(() => document.querySelectorAll('.anyon.selected').length);
+    await firstBlackAnyonCell.click();
+    const selectedTwice = await page.evaluate(() => document.querySelectorAll('.anyon.selected').length);
+    assert.equal(selectedOnce, 1, 'Clicking a friendly anyon selects it.');
+    assert.equal(selectedTwice, 0, 'Clicking the selected anyon again clears selection.');
 
     await page.goto(`http://127.0.0.1:${port}/?mode=virasoro_go`, { waitUntil: 'networkidle' });
     const fixedGoState = await page.evaluate(() => ({

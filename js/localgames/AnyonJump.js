@@ -250,9 +250,18 @@ export class AnyonJumpGame {
             .flatMap((token) => this.legalActionsForToken(token.id));
     }
 
+    adjustBraidTokenCount(owner, delta) {
+        this.braidTokens[owner] = Math.max(0, (this.braidTokens[owner] || 0) + delta);
+    }
+
     applyBraidEffect(owner, effect) {
-        if (effect.effect === 'add_braid_token') this.braidTokens[owner] += effect.delta;
+        if (effect.effect === 'add_braid_token') this.adjustBraidTokenCount(owner, effect.delta);
         if (effect.effect === 'score_bonus') this.score[owner] += effect.delta;
+        if (effect.effect === 'flip_parity') this.parity[owner] = this.parity[owner] ? 0 : 1;
+    }
+
+    applyUnbraidEffect(owner, effect) {
+        if (effect.effect === 'add_braid_token') this.adjustBraidTokenCount(owner, -Math.abs(effect.delta || 1));
         if (effect.effect === 'flip_parity') this.parity[owner] = this.parity[owner] ? 0 : 1;
     }
 
@@ -297,12 +306,20 @@ export class AnyonJumpGame {
             };
         }
         const memory = applyBraidToMemory(movingToken, target, event, this.config);
+        const successfulUnbraid = Boolean(
+            memory.cancelledInverse
+            || memory.successfulPartialUnbraid
+            || (memory.parityToggled && memory.fullyUnbraided)
+        );
         const captureUnlockGranted = recordUnbraidCaptureUnlock(movingToken, event.targetId, {
-            successfulPartialUnbraid: memory.cancelledInverse,
+            successfulPartialUnbraid: successfulUnbraid,
             fullyUnbraided: memory.fullyUnbraided
         });
         const effect = braidEffectForPhase(phase, this.config);
-        if (effect.effect !== 'none') this.applyBraidEffect(movingToken.owner, effect);
+        if (effect.effect !== 'none') {
+            if (successfulUnbraid) this.applyUnbraidEffect(movingToken.owner, effect);
+            else this.applyBraidEffect(movingToken.owner, effect);
+        }
         const applied = {
             ...memory,
             jumpedId: event.reason === 'jump_over' ? event.targetId : null,
@@ -311,16 +328,16 @@ export class AnyonJumpGame {
             phase,
             effect,
             captureUnlockGranted,
-            unbraid: memory.cancelledInverse || memory.fullyUnbraided
+            unbraid: successfulUnbraid || memory.fullyUnbraided
                 ? {
-                    successfulPartialUnbraid: memory.cancelledInverse,
+                    successfulPartialUnbraid: successfulUnbraid,
                     fullyUnbraided: memory.fullyUnbraided,
                     targetId: event.targetId
                 }
                 : null
         };
         this.recordBraidEvent({
-            kind: memory.cancelledInverse ? 'unbraid' : 'braid',
+            kind: successfulUnbraid ? 'unbraid' : 'braid',
             player: movingToken.owner,
             movingToken,
             target,
@@ -328,7 +345,7 @@ export class AnyonJumpGame {
             generator: memory.braidGenerator,
             beforeWord,
             afterWord: memory.braidWord,
-            cancelledInverse: memory.cancelledInverse,
+            cancelledInverse: successfulUnbraid,
             fullyUnbraided: memory.fullyUnbraided,
             beforeFusionChannel,
             afterFusionChannel: fusionChannelState(movingToken),
@@ -384,6 +401,13 @@ export class AnyonJumpGame {
             index
         });
         const unbraid = applyUnbraidGenerator(token, generator, this.config, { target });
+        const phase = target?.anyonType
+            ? mutualBraidPhase(token.anyonType, target.anyonType, this.config.anyonModel)
+            : 1;
+        const effect = braidEffectForPhase(phase, this.config);
+        if ((unbraid.successfulPartialUnbraid || unbraid.fullyUnbraided) && effect.effect !== 'none') {
+            this.applyUnbraidEffect(token.owner, effect);
+        }
         const captureUnlockGranted = recordUnbraidCaptureUnlock(token, targetId, unbraid);
         const cost = this.config.unbraidActionCost;
         if (cost > 0) {

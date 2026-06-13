@@ -49,6 +49,7 @@ exact.addToken({ id: 'b1', owner: 'black', coord: [0, 0], anyonType: 'e' });
 exact.addToken({ id: 'w1', owner: 'white', coord: [1, 0], anyonType: 'm' });
 const exactJump = exact.move('b1', [2, 0]);
 assert.equal(exactJump.ok, true, 'Word-exact jump succeeds.');
+assert.equal(exact.braidTokens.black, 1, 'Word-exact braid increments the visible braid counter.');
 const nextInverse = nextRequiredUnbraidGenerator(exact.tokens.get('b1').braidWord);
 exact.currentPlayer = 'black';
 const unbraid = exact.attemptUnbraid('b1', 'w1', {
@@ -59,6 +60,7 @@ const unbraid = exact.attemptUnbraid('b1', 'w1', {
 assert.equal(unbraid.ok, true, 'Explicit inverse unbraid action succeeds.');
 assert.equal(unbraid.event.unbraid.successfulPartialUnbraid, true, 'Word-exact inverse cancels the latest braid generator.');
 assert.equal(exact.tokens.get('b1').braidWord.length, 0, 'Full unbraid leaves the braid word trivial.');
+assert.equal(exact.braidTokens.black, 0, 'Successful unbraid decrements the visible braid counter.');
 
 const twist = new AnyonJumpGame({ topology: { topology: 'klein_bottle', width: 4, height: 4 } });
 twist.tokens.clear();
