@@ -119,12 +119,19 @@
             </div>
 
             <div class="extra-mode-row" aria-label="Extra board game modes">
-                <a class="extra-mode-card" href="./algebraic/">
+                <a class="extra-mode-card" href="./algebraic/?mode=clifford_reversi">
                     <span class="extra-mode-copy">
-                        <strong>Algebraic Modes</strong>
-                        <small>Clifford Reversi and Anyon Jump on topology graphs</small>
+                        <strong>Clifford Reversi</strong>
+                        <small>Pauli-labelled Reversi with topology-aware flips</small>
                     </span>
-                    <span class="game-count-badge" data-popularity-key="game-algebraic">0 waiting</span>
+                    <span class="game-count-badge" data-popularity-key="game-clifford_reversi">0 waiting</span>
+                </a>
+                <a class="extra-mode-card" href="./algebraic/?mode=anyon_jump">
+                    <span class="extra-mode-copy">
+                        <strong>Anyon Jump Chess</strong>
+                        <small>Jump-game braiding, fusion, and unbraiding</small>
+                    </span>
+                    <span class="game-count-badge" data-popularity-key="game-anyon_jump">0 waiting</span>
                 </a>
             </div>
         </section>
@@ -154,8 +161,8 @@
                 '3dreversi': '3dreversi',
                 kleingo: '2dgo',
                 '4dgo': '4dgo',
-                clifford_reversi: 'algebraic',
-                anyon_jump: 'algebraic'
+                clifford_reversi: 'clifford_reversi',
+                anyon_jump: 'anyon_jump'
             };
             const DIMENSION_BY_GAME = {
                 '2dchess': '2d',
@@ -177,7 +184,8 @@
                 'game-3dgo': 0,
                 'game-3dreversi': 0,
                 'game-4dgo': 0,
-                'game-algebraic': 0
+                'game-clifford_reversi': 0,
+                'game-anyon_jump': 0
             };
 
             function setBadgeState(state, counts = EMPTY_COUNTS) {

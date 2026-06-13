@@ -54,11 +54,13 @@ try {
     await page.locator('#rulesIntroButton').click();
     const rulesState = await page.evaluate(() => ({
         visible: !document.querySelector('#rulesIntroPanel')?.hidden,
-        text: document.querySelector('#rulesIntroPanel')?.textContent || ''
+        text: [...document.querySelectorAll('#rulesIntroPanel [data-rules-mode]:not([hidden])')]
+            .map((node) => node.textContent || '')
+            .join(' ')
     }));
     assert.equal(rulesState.visible, true, 'Expected rules intro panel to open.');
     assert.match(rulesState.text, /Clifford Reversi/);
-    assert.match(rulesState.text, /Toric code fusion/);
+    assert.doesNotMatch(rulesState.text, /Toric code fusion/);
 
     await page.locator('.cell.legal').first().click();
     const reversiState = await page.evaluate(() => ({
@@ -79,8 +81,24 @@ try {
     }));
     assert.equal(anyonState.mode, 'anyon_jump');
     assert.equal(anyonState.moveNumber, 1, 'Expected a real pointer click to move an anyon.');
+
+    await page.goto(`http://127.0.0.1:${port}/?mode=anyon_jump`, { waitUntil: 'networkidle' });
+    const fixedAnyonState = await page.evaluate(() => ({
+        title: document.querySelector('#modeTitle')?.textContent,
+        modeControlHidden: document.querySelector('#modeControl')?.hidden,
+        pauliHidden: document.querySelector('#pauliControl')?.hidden,
+        braidVisible: !document.querySelector('#braidMemoryControl')?.hidden,
+        rulesText: [...document.querySelectorAll('#rulesIntroPanel [data-rules-mode]:not([hidden])')]
+            .map((node) => node.textContent || '')
+            .join(' ')
+    }));
+    assert.equal(fixedAnyonState.title, 'Anyon Jump Chess');
+    assert.equal(fixedAnyonState.modeControlHidden, true, 'Fixed launcher mode should hide the mixed mode selector.');
+    assert.equal(fixedAnyonState.pauliHidden, true, 'Anyon Jump should hide Pauli Reversi controls.');
+    assert.equal(fixedAnyonState.braidVisible, true, 'Anyon Jump should show braid controls.');
+    assert.match(fixedAnyonState.rulesText, /Toric code fusion/);
     assert.equal(logs.some((line) => line.startsWith('pageerror')), false, logs.join('\n'));
-    console.log(JSON.stringify({ state, rulesVisible: rulesState.visible, reversiState, anyonState, logs }, null, 2));
+    console.log(JSON.stringify({ state, rulesVisible: rulesState.visible, reversiState, anyonState, fixedAnyonState, logs }, null, 2));
 } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

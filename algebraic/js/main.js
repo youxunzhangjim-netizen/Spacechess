@@ -9,6 +9,7 @@ import { fusionChannelDisplay } from '../../js/anyon/NonabelianFusionMemory.js';
 
 const els = {
     modeSelect: document.querySelector('#modeSelect'),
+    modeControl: document.querySelector('#modeControl'),
     topologySelect: document.querySelector('#topologySelect'),
     widthInput: document.querySelector('#widthInput'),
     heightInput: document.querySelector('#heightInput'),
@@ -65,21 +66,98 @@ const els = {
     whiteCount: document.querySelector('#whiteCount'),
     blackBraid: document.querySelector('#blackBraid'),
     whiteBraid: document.querySelector('#whiteBraid'),
+    blackBraidCard: document.querySelector('#blackBraid')?.closest('div'),
+    whiteBraidCard: document.querySelector('#whiteBraid')?.closest('div'),
     timeStatus: document.querySelector('#timeStatus'),
     phaseTimeline: document.querySelector('#phaseTimeline'),
     statusText: document.querySelector('#statusText'),
     historyList: document.querySelector('#historyList'),
     braidEventList: document.querySelector('#braidEventList'),
+    braidEventSection: document.querySelector('#braidEventList')?.closest('section'),
     stochasticList: document.querySelector('#stochasticList'),
     legend: document.querySelector('#legend'),
+    cliffordRules: document.querySelector('[data-rules-mode="clifford"]'),
+    anyonRules: document.querySelector('[data-rules-mode="anyon"]'),
     exportText: document.querySelector('#exportText')
 };
+
+const MODE_LABELS = {
+    clifford_reversi: 'Clifford Reversi',
+    anyon_jump: 'Anyon Jump Chess'
+};
+const params = new URLSearchParams(window.location.search);
+const FIXED_MODE = normalizeMode(params.get('mode') || params.get('game') || params.get('algebraicMode'));
 
 let game = null;
 let selectedToken = '';
 let hoverCoord = null;
 let lastCancellation = null;
 let lastWrongUnbraid = null;
+
+if (FIXED_MODE) {
+    els.modeSelect.value = FIXED_MODE;
+    els.modeSelect.disabled = true;
+    document.body.dataset.fixedAlgebraicMode = FIXED_MODE;
+}
+
+function normalizeMode(value) {
+    if (value === 'anyon' || value === 'anyon_jump_chess') return 'anyon_jump';
+    if (value === 'clifford' || value === 'reversi') return 'clifford_reversi';
+    return Object.hasOwn(MODE_LABELS, value) ? value : '';
+}
+
+function selectedMode() {
+    return normalizeMode(FIXED_MODE || els.modeSelect.value) || 'clifford_reversi';
+}
+
+function setAllowedSelectValues(select, allowedValues, fallback = 'off') {
+    const allowed = new Set(allowedValues);
+    for (const option of select.options) {
+        const isAllowed = allowed.has(option.value);
+        option.hidden = !isAllowed;
+        option.disabled = !isAllowed;
+    }
+    if (!allowed.has(select.value)) {
+        select.value = allowed.has(fallback) ? fallback : allowedValues[0];
+    }
+}
+
+function syncModeControls() {
+    const mode = selectedMode();
+    const isAnyon = mode === 'anyon_jump';
+    if (els.modeSelect.value !== mode) els.modeSelect.value = mode;
+    if (els.modeControl) els.modeControl.hidden = Boolean(FIXED_MODE);
+
+    setAllowedSelectValues(
+        els.noiseModeSelect,
+        isAnyon
+            ? ['off', 'anyon_pair_creation', 'measurement_error', 'field_noise', 'custom']
+            : ['off', 'pauli', 'measurement_error', 'field_noise', 'custom']
+    );
+    setAllowedSelectValues(
+        els.floquetModeSelect,
+        isAnyon
+            ? ['off', 'basic', 'anyon', 'virasoro']
+            : ['off', 'basic', 'clifford', 'virasoro']
+    );
+    if (!isAnyon) els.anyonFlipSelect.value = 'off';
+
+    els.pauliControl.hidden = isAnyon;
+    els.transformControl.hidden = isAnyon;
+    els.braidMemoryControl.hidden = !isAnyon;
+    els.anyonModelControl.hidden = !isAnyon;
+    els.braidedCaptureDetails.hidden = !isAnyon;
+    els.braidCancellationControl.hidden = !isAnyon
+        || !['word_exact', 'nonabelian_fusion_channel'].includes(els.braidMemoryModeSelect.value);
+    els.passButton.hidden = isAnyon;
+    if (els.blackBraidCard) els.blackBraidCard.hidden = !isAnyon;
+    if (els.whiteBraidCard) els.whiteBraidCard.hidden = !isAnyon;
+    if (els.braidEventSection) els.braidEventSection.hidden = !isAnyon;
+    if (els.cliffordRules) els.cliffordRules.hidden = isAnyon;
+    if (els.anyonRules) els.anyonRules.hidden = !isAnyon;
+    document.title = `${MODE_LABELS[mode]} - Algebraic Board Games`;
+    return mode;
+}
 
 function topologyConfig() {
     return {
@@ -159,6 +237,7 @@ function anyonConfig() {
 }
 
 function createGame() {
+    const mode = syncModeControls();
     selectedToken = '';
     hoverCoord = null;
     lastCancellation = null;
@@ -170,7 +249,7 @@ function createGame() {
         probability: probabilityConfig(),
         time: timeConfig()
     };
-    game = els.modeSelect.value === 'anyon_jump'
+    game = mode === 'anyon_jump'
         ? new AnyonJumpGame(options)
         : new CliffordReversiGame(options);
     normalizeLayerControls();
@@ -221,18 +300,11 @@ function currentReversiPreview() {
 function render() {
     if (!game) return;
     normalizeLayerControls();
-    const isAnyon = game.mode === 'anyon_jump';
-    els.modeTitle.textContent = isAnyon ? 'Anyon Jump' : 'Clifford Reversi';
+    const mode = syncModeControls();
+    const isAnyon = mode === 'anyon_jump';
+    els.modeTitle.textContent = MODE_LABELS[mode];
     els.currentPlayer.textContent = capitalize(game.currentPlayer);
     els.topologyHint.textContent = game.topology.seamSummary();
-    els.pauliControl.hidden = isAnyon;
-    els.transformControl.hidden = isAnyon;
-    els.braidMemoryControl.hidden = !isAnyon;
-    els.anyonModelControl.hidden = !isAnyon;
-    els.braidedCaptureDetails.hidden = !isAnyon;
-    els.braidCancellationControl.hidden = !isAnyon
-        || !['word_exact', 'nonabelian_fusion_channel'].includes(els.braidMemoryModeSelect.value);
-    els.passButton.hidden = isAnyon;
     const is4D = els.topologySelect.value === 'flat_4d_grid';
     const noiseEnabled = els.noiseModeSelect.value !== 'off';
     const timeEnabled = els.floquetModeSelect.value !== 'off';
@@ -243,8 +315,8 @@ function render() {
     els.timeDetails.hidden = !timeEnabled;
     els.manualNoiseButton.hidden = !noiseEnabled;
     els.manualTimeButton.hidden = !timeEnabled;
-    els.pauliNoiseControl.hidden = !['pauli', 'custom'].includes(els.noiseModeSelect.value);
-    els.anyonFlipControl.hidden = !isAnyon;
+    els.pauliNoiseControl.hidden = isAnyon || !['pauli', 'custom'].includes(els.noiseModeSelect.value);
+    els.anyonFlipControl.hidden = !isAnyon || !['anyon_pair_creation', 'custom'].includes(els.noiseModeSelect.value);
 
     renderBoard();
     renderStats();
