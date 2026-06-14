@@ -6,6 +6,7 @@ import {
     nextRequiredUnbraidGenerator,
     requiredInverseBraidWordText
 } from '../../js/anyon/BraidMemory.js';
+import { anyonTypes } from '../../js/anyon/AnyonAlgebra.js';
 import { fusionChannelDisplay } from '../../js/anyon/NonabelianFusionMemory.js';
 import { Algebraic3DBoard, usesAlgebraic3DView } from './Algebraic3DBoard.js';
 
@@ -129,6 +130,18 @@ const ANYON_SYMBOLS = {
     sigma: '\u03c3',
     tau: '\u03c4'
 };
+const SUBSCRIPT_DIGITS = {
+    0: '\u2080',
+    1: '\u2081',
+    2: '\u2082',
+    3: '\u2083',
+    4: '\u2084',
+    5: '\u2085',
+    6: '\u2086',
+    7: '\u2087',
+    8: '\u2088',
+    9: '\u2089'
+};
 const params = new URLSearchParams(window.location.search);
 const INITIAL_MODE = normalizeMode(params.get('mode') || params.get('game') || params.get('algebraicMode'));
 const INITIAL_TOPOLOGY = params.get('topology') || params.get('board') || '';
@@ -194,6 +207,38 @@ function setAllowedSelectValues(select, allowedValues, fallback = 'off') {
     }
 }
 
+function selectedAnyonGrade() {
+    return Math.max(2, Math.min(64, Math.floor(Number(els.anyonGradeInput?.value) || 5)));
+}
+
+function selectedAnyonEngineModel() {
+    return els.anyonModelSelect.value === 'zn_phase' ? 'zn' : els.anyonModelSelect.value;
+}
+
+function excitationCatalog() {
+    const model = selectedAnyonEngineModel();
+    const grade = selectedAnyonGrade();
+    const types = anyonTypes(model, grade).filter((type) => type !== '1');
+    const costs = Object.fromEntries(types.map((type) => {
+        if (model === 'toric_code' || model === 'ising') return [type, type === 'psi' ? 4 : 2];
+        if (model === 'fibonacci') return [type, 3];
+        return [type, 2];
+    }));
+    return { model, grade, types, costs };
+}
+
+function syncAnyonExcitationTypeOptions() {
+    const { types } = excitationCatalog();
+    const previous = els.anyonExcitationTypeSelect.value;
+    els.anyonExcitationTypeSelect.replaceChildren(...types.map((type) => {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = anyonDisplay(type);
+        return option;
+    }));
+    els.anyonExcitationTypeSelect.value = types.includes(previous) ? previous : types[0];
+}
+
 function syncModeControls() {
     const mode = selectedMode();
     const isAnyon = mode === 'anyon_jump';
@@ -243,16 +288,17 @@ function syncModeControls() {
     els.phaseSignControl.hidden = !isClifford;
     els.braidMemoryControl.hidden = !isAnyon;
     els.anyonModelControl.hidden = !isAnyon;
+    if (isAnyon && els.anyonModelSelect.value === 'zn_phase'
+        && els.braidMemoryModeSelect.value === 'nonabelian_fusion_channel') {
+        els.braidMemoryModeSelect.value = 'word_exact';
+    }
+    if (isAnyon) syncAnyonExcitationTypeOptions();
     if (els.anyonGradeControl) els.anyonGradeControl.hidden = !isAnyon || els.anyonModelSelect.value !== 'zn_phase';
     if (els.anyonSetupControl) els.anyonSetupControl.hidden = !isAnyon;
     const excitationMode = isAnyon && els.anyonSetupSelect?.value === 'excitation';
     if (els.anyonExcitationTypeControl) els.anyonExcitationTypeControl.hidden = !excitationMode;
     if (els.anyonDropLossControl) els.anyonDropLossControl.hidden = !excitationMode;
     if (els.dropAnyonButton) els.dropAnyonButton.hidden = !excitationMode;
-    if (isAnyon && els.anyonModelSelect.value === 'zn_phase'
-        && els.braidMemoryModeSelect.value === 'nonabelian_fusion_channel') {
-        els.braidMemoryModeSelect.value = 'word_exact';
-    }
     els.braidedCaptureDetails.hidden = !isAnyon;
     els.braidCancellationControl.hidden = !isAnyon
         || !['word_exact', 'nonabelian_fusion_channel'].includes(els.braidMemoryModeSelect.value);
@@ -410,15 +456,16 @@ function anyonConfig() {
     }
     const selectedAnyonModel = els.anyonModelSelect.value;
     const useGeneralPhase = selectedAnyonModel === 'zn_phase';
+    const catalog = excitationCatalog();
     return {
-        anyonModel: useGeneralPhase ? 'toric_code' : selectedAnyonModel,
+        anyonModel: catalog.model,
         phaseModel: useGeneralPhase ? 'zn_phase' : 'off',
-        generalAnyonGrade: Math.max(2, Math.min(64, Math.floor(Number(els.anyonGradeInput?.value) || 5))),
+        generalAnyonGrade: catalog.grade,
         setupMode: els.anyonSetupSelect?.value === 'excitation' ? 'excitation' : 'standard',
-        excitationType: els.anyonExcitationTypeSelect?.value || 'e',
+        excitationType: els.anyonExcitationTypeSelect?.value || catalog.types[0],
         excitationEnergy: { black: 12, white: 12 },
-        anyonGaps: { e: 2, m: 2, psi: 4 },
-        excitationCosts: { e: 2, m: 2, psi: 4 },
+        anyonGaps: { '1': 0, ...catalog.costs },
+        excitationCosts: { '1': 0, ...catalog.costs },
         dropLossRate: Math.max(0, Math.min(1, Number(els.anyonDropLossInput?.value) || 0)),
         braidMemoryMode: els.braidMemoryModeSelect.value,
         braidCancellationMode: els.braidCancellationModeSelect.value,
@@ -1401,7 +1448,7 @@ function renderLegend() {
             'Braided marker: nontrivial memory',
             'Green UNBRAID badge: next inverse loop',
             game.config?.setupMode === 'excitation'
-                ? 'Excitation mode: e,m,ψ cost energy; drop/fusion recovers energy with loss'
+                ? `Excitation mode: ${excitationCatalog().types.map(anyonDisplay).join(', ')} use energy; drop/fusion recovers energy with loss`
                 : 'Standard mode: fixed initial anyon set'
         ];
     els.legend.innerHTML = items.map((item) => `<span>${item}</span>`).join('');
@@ -1540,6 +1587,11 @@ function pauliDisplay(stone) {
 }
 
 function anyonDisplay(type) {
+    const znMatch = String(type || '').match(/^z(\d+)$/);
+    if (znMatch) {
+        const subscript = [...znMatch[1]].map((digit) => SUBSCRIPT_DIGITS[digit] || digit).join('');
+        return `\u03b1${subscript}`;
+    }
     return ANYON_SYMBOLS[type] || type;
 }
 

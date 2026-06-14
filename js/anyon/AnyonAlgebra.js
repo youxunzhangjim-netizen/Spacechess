@@ -10,7 +10,8 @@ import {
 export const ANYON_MODELS = Object.freeze({
     toric_code: Object.freeze(['1', 'e', 'm', 'psi']),
     ising: Object.freeze(['1', 'sigma', 'psi']),
-    fibonacci: Object.freeze(['1', 'tau'])
+    fibonacci: Object.freeze(['1', 'tau']),
+    zn: Object.freeze(['1'])
 });
 
 export const BRAID_EFFECTS = Object.freeze([
@@ -75,23 +76,51 @@ export function normalizeAnyonModel(model = DEFAULT_ANYON_CONFIG.anyonModel) {
     return Object.prototype.hasOwnProperty.call(ANYON_MODELS, model) ? model : DEFAULT_ANYON_CONFIG.anyonModel;
 }
 
-export function anyonTypes(model = DEFAULT_ANYON_CONFIG.anyonModel) {
-    return [...ANYON_MODELS[normalizeAnyonModel(model)]];
+function normalizeZnGrade(grade = DEFAULT_ANYON_CONFIG.generalAnyonGrade) {
+    const parsed = Math.floor(Number(grade));
+    return Number.isFinite(parsed)
+        ? Math.max(2, Math.min(64, parsed))
+        : DEFAULT_ANYON_CONFIG.generalAnyonGrade;
 }
 
-export function normalizeAnyonType(type = '1', model = DEFAULT_ANYON_CONFIG.anyonModel) {
+function znTypeIndex(type, grade) {
+    if (String(type || '').trim() === '1') return 0;
+    const match = String(type || '').trim().match(/^(?:z|q|a)_?(\d+)$/i);
+    if (!match) return null;
+    return Number(match[1]) % normalizeZnGrade(grade);
+}
+
+export function anyonTypes(model = DEFAULT_ANYON_CONFIG.anyonModel, grade = DEFAULT_ANYON_CONFIG.generalAnyonGrade) {
+    const anyonModel = normalizeAnyonModel(model);
+    if (anyonModel === 'zn') {
+        const n = normalizeZnGrade(grade);
+        return ['1', ...Array.from({ length: n - 1 }, (_, index) => `z${index + 1}`)];
+    }
+    return [...ANYON_MODELS[anyonModel]];
+}
+
+export function normalizeAnyonType(
+    type = '1',
+    model = DEFAULT_ANYON_CONFIG.anyonModel,
+    grade = DEFAULT_ANYON_CONFIG.generalAnyonGrade
+) {
+    const anyonModel = normalizeAnyonModel(model);
     const value = String(type || '1').trim();
-    return ANYON_MODELS[normalizeAnyonModel(model)].includes(value) ? value : '1';
+    if (anyonModel === 'zn') {
+        const index = znTypeIndex(value, grade);
+        return index ? `z${index}` : '1';
+    }
+    return ANYON_MODELS[anyonModel].includes(value) ? value : '1';
 }
 
 export function normalizeAnyonConfig(config = {}) {
     const anyonModel = normalizeAnyonModel(config.anyonModel);
     const braidEffect = BRAID_EFFECTS.includes(config.braidEffect) ? config.braidEffect : DEFAULT_ANYON_CONFIG.braidEffect;
-    const phaseModel = config.phaseModel === 'zn_phase' ? 'zn_phase' : 'off';
     const parsedGrade = Math.floor(Number(config.generalAnyonGrade));
     const generalAnyonGrade = Number.isFinite(parsedGrade)
         ? Math.max(2, Math.min(64, parsedGrade))
         : DEFAULT_ANYON_CONFIG.generalAnyonGrade;
+    const phaseModel = config.phaseModel === 'zn_phase' || anyonModel === 'zn' ? 'zn_phase' : 'off';
     const braidMemory = normalizeBraidMemoryConfig(config);
     const braidedCapture = normalizeBraidedCaptureConfig(config);
     return {
@@ -109,25 +138,43 @@ export function normalizeAnyonConfig(config = {}) {
     };
 }
 
-export function fusionOutputs(a, b, model = DEFAULT_ANYON_CONFIG.anyonModel) {
+export function fusionOutputs(
+    a,
+    b,
+    model = DEFAULT_ANYON_CONFIG.anyonModel,
+    grade = DEFAULT_ANYON_CONFIG.generalAnyonGrade
+) {
     const anyonModel = normalizeAnyonModel(model);
-    const left = normalizeAnyonType(a, anyonModel);
-    const right = normalizeAnyonType(b, anyonModel);
+    const left = normalizeAnyonType(a, anyonModel, grade);
+    const right = normalizeAnyonType(b, anyonModel, grade);
+    if (anyonModel === 'zn') {
+        const n = normalizeZnGrade(grade);
+        const output = (znTypeIndex(left, n) + znTypeIndex(right, n)) % n;
+        return [output === 0 ? '1' : `z${output}`];
+    }
     return [...(FUSION_TABLES[anyonModel]?.[left]?.[right]
         || FUSION_TABLES[anyonModel]?.[right]?.[left]
         || [])];
 }
 
-export function canFuseToVacuum(a, b, model = DEFAULT_ANYON_CONFIG.anyonModel) {
-    return fusionOutputs(a, b, model).includes('1');
+export function canFuseToVacuum(
+    a,
+    b,
+    model = DEFAULT_ANYON_CONFIG.anyonModel,
+    grade = DEFAULT_ANYON_CONFIG.generalAnyonGrade
+) {
+    return fusionOutputs(a, b, model, grade).includes('1');
 }
 
 export function createFusionResult(a, b, config = {}) {
     const normalized = normalizeAnyonConfig(config);
-    const outputs = fusionOutputs(a, b, normalized.anyonModel);
+    const outputs = fusionOutputs(a, b, normalized.anyonModel, normalized.generalAnyonGrade);
     const resolved = outputs.length === 1 ? outputs[0] : null;
     return {
-        input: [normalizeAnyonType(a, normalized.anyonModel), normalizeAnyonType(b, normalized.anyonModel)],
+        input: [
+            normalizeAnyonType(a, normalized.anyonModel, normalized.generalAnyonGrade),
+            normalizeAnyonType(b, normalized.anyonModel, normalized.generalAnyonGrade)
+        ],
         outputs,
         resolved,
         vacuum: outputs.includes('1'),
@@ -150,20 +197,32 @@ export function braidEffectForPhase(phase, config = {}) {
     return { phase, effect: normalized.braidEffect, delta: 1 };
 }
 
-export function applyTwistAutomorphism(type, model = DEFAULT_ANYON_CONFIG.anyonModel) {
+export function applyTwistAutomorphism(
+    type,
+    model = DEFAULT_ANYON_CONFIG.anyonModel,
+    grade = DEFAULT_ANYON_CONFIG.generalAnyonGrade
+) {
     const anyonModel = normalizeAnyonModel(model);
-    const normalized = normalizeAnyonType(type, anyonModel);
+    const normalized = normalizeAnyonType(type, anyonModel, grade);
+    if (anyonModel === 'zn') return normalized;
     const mapped = TWIST_AUTOMORPHISM[normalized] || normalized;
-    return normalizeAnyonType(mapped, anyonModel);
+    return normalizeAnyonType(mapped, anyonModel, grade);
 }
 
-export function applyAnyonAutomorphism(type, automorphism = 'identity', model = DEFAULT_ANYON_CONFIG.anyonModel) {
-    if (!automorphism || automorphism === 'identity') return normalizeAnyonType(type, model);
-    if (automorphism === 'twist' || automorphism === 'em_duality') return applyTwistAutomorphism(type, model);
-    if (typeof automorphism === 'object') {
-        return normalizeAnyonType(automorphism[type] || type, model);
+export function applyAnyonAutomorphism(
+    type,
+    automorphism = 'identity',
+    model = DEFAULT_ANYON_CONFIG.anyonModel,
+    grade = DEFAULT_ANYON_CONFIG.generalAnyonGrade
+) {
+    if (!automorphism || automorphism === 'identity') return normalizeAnyonType(type, model, grade);
+    if (automorphism === 'twist' || automorphism === 'em_duality') {
+        return applyTwistAutomorphism(type, model, grade);
     }
-    return normalizeAnyonType(type, model);
+    if (typeof automorphism === 'object') {
+        return normalizeAnyonType(automorphism[type] || type, model, grade);
+    }
+    return normalizeAnyonType(type, model, grade);
 }
 
 export function previewAnyonCapture(attackerType, defenderType, config = {}) {

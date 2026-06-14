@@ -77,11 +77,21 @@ function fusionChannelState(token) {
     return token?.hiddenFusionState?.currentChannel ?? token?.fusionChannel ?? null;
 }
 
-function defaultTypesForModel(model = 'toric_code') {
+function defaultTypesForModel(model = 'toric_code', grade = 2) {
     if (model === 'ising') return ['sigma', 'sigma', 'psi'];
     if (model === 'fibonacci') return ['tau'];
-    const types = anyonTypes(model).filter((type) => type !== '1');
+    const types = anyonTypes(model, grade).filter((type) => type !== '1');
     return types.length ? types : [...DEFAULT_TYPES];
+}
+
+function defaultExcitationGaps(config) {
+    if (config.anyonModel === 'ising') return { '1': 0, sigma: 2, psi: 4 };
+    if (config.anyonModel === 'fibonacci') return { '1': 0, tau: 3 };
+    if (config.anyonModel === 'zn') {
+        return Object.fromEntries(anyonTypes('zn', config.generalAnyonGrade)
+            .map((type) => [type, type === '1' ? 0 : 2]));
+    }
+    return { ...DEFAULT_TORIC_GAPS };
 }
 
 export class AnyonJumpGame {
@@ -112,7 +122,7 @@ export class AnyonJumpGame {
             black: Number(options.config?.excitationEnergy?.black ?? options.config?.initialEnergy ?? 12),
             white: Number(options.config?.excitationEnergy?.white ?? options.config?.initialEnergy ?? 12)
         };
-        this.anyonGaps = { ...DEFAULT_TORIC_GAPS, ...(options.config?.anyonGaps || {}) };
+        this.anyonGaps = { ...defaultExcitationGaps(this.config), ...(options.config?.anyonGaps || {}) };
         this.excitationCosts = { ...this.anyonGaps, ...(options.config?.excitationCosts || {}) };
         this.dropLossRate = Math.max(0, Math.min(1, Number(options.config?.dropLossRate ?? 0.25)));
         this.parity = { black: 0, white: 0 };
@@ -155,7 +165,7 @@ export class AnyonJumpGame {
         const w = this.topology.dimensions === 4 ? Math.floor(sizes[3] / 2) : null;
         const count = Math.min(width, 6);
         const offset = Math.floor((width - count) / 2);
-        const modelTypes = defaultTypesForModel(this.config.anyonModel);
+        const modelTypes = defaultTypesForModel(this.config.anyonModel, this.config.generalAnyonGrade);
 
         for (let i = 0; i < count; i++) {
             const x = offset + i;
@@ -202,7 +212,7 @@ export class AnyonJumpGame {
             id: tokenId,
             owner,
             coord: normalized,
-            anyonType: normalizeAnyonType(anyonType, this.config.anyonModel),
+            anyonType: this.normalizeConfiguredType(anyonType),
             hiddenState,
             revealed,
             stability: Number.isFinite(Number(stability)) ? Number(stability) : 1,
@@ -225,13 +235,17 @@ export class AnyonJumpGame {
     }
 
     excitationCost(type) {
-        const normalized = normalizeAnyonType(type, this.config.anyonModel);
+        const normalized = this.normalizeConfiguredType(type);
         return Number(this.excitationCosts[normalized] ?? this.excitationCosts.psi ?? 4);
     }
 
     excitationGap(type) {
-        const normalized = normalizeAnyonType(type, this.config.anyonModel);
+        const normalized = this.normalizeConfiguredType(type);
         return Number(this.anyonGaps[normalized] ?? this.anyonGaps.psi ?? 4);
+    }
+
+    normalizeConfiguredType(type) {
+        return normalizeAnyonType(type, this.config.anyonModel, this.config.generalAnyonGrade);
     }
 
     exciteAnyon(coord, type = this.config.excitationType || 'e', player = this.currentPlayer) {
@@ -239,7 +253,8 @@ export class AnyonJumpGame {
         const normalized = this.topology.normalize(coord);
         if (!normalized) return { ok: false, error: 'Choose a valid graph vertex.' };
         if (this.tokenAt(normalized)) return { ok: false, error: 'That vertex already has an anyon.' };
-        const anyonType = normalizeAnyonType(type, this.config.anyonModel);
+        const anyonType = this.normalizeConfiguredType(type);
+        if (anyonType === '1') return { ok: false, error: 'Choose a non-vacuum anyon excitation.' };
         const cost = this.excitationCost(anyonType);
         if ((this.energy[player] || 0) < cost) return { ok: false, error: `Not enough energy to excite ${anyonType}.` };
         const token = this.addToken({
@@ -320,7 +335,12 @@ export class AnyonJumpGame {
 
     transformTypeAcrossEdges(type, edges) {
         return edges.reduce((current, edge) =>
-            applyAnyonAutomorphism(current, this.topology.seamTransform(edge), this.config.anyonModel), type);
+            applyAnyonAutomorphism(
+                current,
+                this.topology.seamTransform(edge),
+                this.config.anyonModel,
+                this.config.generalAnyonGrade
+            ), type);
     }
 
     legalActionsForToken(id) {

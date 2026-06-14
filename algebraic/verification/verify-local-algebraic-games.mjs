@@ -4,6 +4,7 @@ import { AnyonJumpGame } from '../../js/localgames/AnyonJump.js';
 import { VirasoroGoGame } from '../../js/localgames/VirasoroGo.js';
 import { createGraphTopology } from '../../js/topology/GraphTopologies.js';
 import { nextRequiredUnbraidGenerator } from '../../js/anyon/BraidMemory.js';
+import { anyonTypes, createFusionResult } from '../../js/anyon/AnyonAlgebra.js';
 
 const klein = createGraphTopology({ topology: 'klein_bottle', width: 6, height: 6 });
 assert.deepEqual(klein.normalize([2, 6]), [3, 0], 'Klein vertical crossing flips x.');
@@ -128,6 +129,46 @@ excitation.currentPlayer = 'black';
 const dropE = excitation.dropAnyon(exciteE.event.tokenId, 'black');
 assert.equal(dropE.ok, true, 'Dropping an anyon recovers energy.');
 assert.equal(excitation.energy.black, 5.5, 'Drop recovery applies the configured loss rate.');
+
+const isingExcitation = new AnyonJumpGame({
+    topology: { topology: 'flat', width: 6, height: 6 },
+    config: { anyonModel: 'ising', setupMode: 'excitation', excitationEnergy: { black: 12, white: 12 } }
+});
+const exciteSigma = isingExcitation.exciteAnyon([2, 2], 'sigma', 'black');
+assert.equal(exciteSigma.ok, true, 'Ising excitation mode can create sigma.');
+assert.equal(isingExcitation.tokens.get(exciteSigma.event.tokenId).anyonType, 'sigma');
+
+const fibonacciExcitation = new AnyonJumpGame({
+    topology: { topology: 'flat', width: 6, height: 6 },
+    config: { anyonModel: 'fibonacci', setupMode: 'excitation', excitationEnergy: { black: 12, white: 12 } }
+});
+const exciteTau = fibonacciExcitation.exciteAnyon([2, 2], 'tau', 'black');
+assert.equal(exciteTau.ok, true, 'Fibonacci excitation mode can create tau.');
+assert.equal(fibonacciExcitation.tokens.get(exciteTau.event.tokenId).anyonType, 'tau');
+
+assert.deepEqual(
+    anyonTypes('zn', 5),
+    ['1', 'z1', 'z2', 'z3', 'z4'],
+    'Z_n exposes every grade, including vacuum and all non-vacuum charges.'
+);
+const znExcitation = new AnyonJumpGame({
+    topology: { topology: 'flat', width: 6, height: 6 },
+    config: {
+        anyonModel: 'zn',
+        phaseModel: 'zn_phase',
+        generalAnyonGrade: 5,
+        setupMode: 'excitation',
+        excitationEnergy: { black: 12, white: 12 }
+    }
+});
+const exciteZ4 = znExcitation.exciteAnyon([2, 2], 'z4', 'black');
+assert.equal(exciteZ4.ok, true, 'Z_n excitation mode can create its highest non-vacuum grade.');
+assert.equal(znExcitation.tokens.get(exciteZ4.event.tokenId).anyonType, 'z4');
+assert.equal(
+    createFusionResult('z2', 'z3', { anyonModel: 'zn', generalAnyonGrade: 5 }).resolved,
+    '1',
+    'Z_n fusion adds grades modulo n and resolves grade zero to vacuum.'
+);
 
 const triangularGo = new VirasoroGoGame({
     topology: { topology: 'flat', lattice: 'triangular', width: 7, height: 7 }

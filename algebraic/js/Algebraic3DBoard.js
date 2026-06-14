@@ -27,6 +27,8 @@ function anyonSymbol(type) {
     if (type === 'psi') return '\u03c8';
     if (type === 'sigma') return '\u03c3';
     if (type === 'tau') return '\u03c4';
+    const znMatch = String(type || '').match(/^z(\d+)$/);
+    if (znMatch) return `\u03b1${znMatch[1]}`;
     return type || '1';
 }
 

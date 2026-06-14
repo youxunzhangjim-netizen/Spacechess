@@ -250,12 +250,42 @@ try {
     assert.match(fixedAnyonState.rulesText, /Toric code fusion/);
     assert.match(fixedAnyonState.rulesText, /Vacuum 1/);
     assert.match(fixedAnyonState.rulesText, /General Z_n phase/);
+    await page.selectOption('#anyonModelSelect', 'ising');
+    assert.deepEqual(
+        await page.locator('#anyonExcitationTypeSelect option').evaluateAll((options) =>
+            options.map((option) => ({ value: option.value, label: option.textContent }))),
+        [
+            { value: 'sigma', label: '\u03c3' },
+            { value: 'psi', label: '\u03c8' }
+        ],
+        'Ising excitation selector should expose every non-vacuum Ising type.'
+    );
+    await page.selectOption('#anyonModelSelect', 'fibonacci');
+    assert.deepEqual(
+        await page.locator('#anyonExcitationTypeSelect option').evaluateAll((options) =>
+            options.map((option) => ({ value: option.value, label: option.textContent }))),
+        [{ value: 'tau', label: '\u03c4' }],
+        'Fibonacci excitation selector should expose tau.'
+    );
     await page.selectOption('#anyonModelSelect', 'zn_phase');
     const zPhaseControlState = await page.evaluate(() => ({
         anyonGradeHidden: document.querySelector('#anyonGradeControl')?.hidden,
-        config: JSON.parse(document.querySelector('#exportText').value).tokens[0]
+        excitationTypes: [...document.querySelectorAll('#anyonExcitationTypeSelect option')]
+            .map((option) => ({ value: option.value, label: option.textContent })),
+        tokenTypes: JSON.parse(document.querySelector('#exportText').value).tokens.map((token) => token.anyonType)
     }));
     assert.equal(zPhaseControlState.anyonGradeHidden, false, 'General Z_n phase model should expose the grade n control.');
+    assert.deepEqual(
+        zPhaseControlState.excitationTypes.map((entry) => entry.value),
+        ['z1', 'z2', 'z3', 'z4'],
+        'Z_5 excitation selector should expose every non-vacuum grade.'
+    );
+    assert.deepEqual(
+        zPhaseControlState.excitationTypes.map((entry) => entry.label),
+        ['\u03b1\u2081', '\u03b1\u2082', '\u03b1\u2083', '\u03b1\u2084'],
+        'Z_n grades should use Greek alpha labels in the UI.'
+    );
+    assert.ok(zPhaseControlState.tokenTypes.every((type) => /^z[1-4]$/.test(type)), 'Z_n setup tokens should retain Z_n charge types.');
 
     const firstBlackAnyonCell = page.locator('.anyon.black').first().locator('xpath=..');
     await firstBlackAnyonCell.click();
